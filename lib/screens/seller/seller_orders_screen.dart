@@ -23,7 +23,6 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
-      // Update filter based on tab
       setState(() {
         switch (_tabController.index) {
           case 0:
@@ -52,135 +51,241 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen>
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Orders')),
-        body: Center(child: Text('Please log in to view orders')),
+        appBar: AppBar(title: const Text('Orders')),
+        body: const Center(child: Text('Please log in to view orders')),
       );
     }
 
-    // Create filter based on selected tab
     final OrderFilter filter = OrderFilter(
       userId: user.id,
       role: 'seller',
       status: _selectedFilter == 'all' ? null : _selectedFilter,
     );
-
-    // Watch orders with the filter
     final ordersAsync = ref.watch(orderStreamProvider(filter));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Seller Orders'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'Pending'),
-            Tab(text: 'Processing'),
-            Tab(text: 'Completed'),
-          ],
-          labelColor: Theme.of(context).colorScheme.primary,
-          indicatorColor: Theme.of(context).colorScheme.primary,
-          unselectedLabelColor: Colors.grey,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.primary.withOpacity(0.85),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'All'),
+                Tab(text: 'Pending'),
+                Tab(text: 'Processing'),
+                Tab(text: 'Completed'),
+              ],
+              labelColor: colorScheme.onPrimary,
+              indicatorColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: colorScheme.primary.withOpacity(0.25),
+              ),
+            ),
+          ),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() => _isRefreshing = true);
-          // Invalidate the stream provider to force a refresh
-          ref.invalidate(orderStreamProvider(filter));
-          // Wait for the stream to emit new data
-          ordersAsync.whenData((_) => setState(() => _isRefreshing = false));
-        },
-        child: Stack(
-          children: [
-            ordersAsync.when(
-              data: (orders) {
-                if (orders.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No orders found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primary.withOpacity(0.04),
+              colorScheme.surface,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            setState(() => _isRefreshing = true);
+            ref.invalidate(orderStreamProvider(filter));
+            ordersAsync.whenData((_) => setState(() => _isRefreshing = false));
+          },
+          child: Stack(
+            children: [
+              ordersAsync.when(
+                data: (orders) {
+                  if (orders.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 80,
+                            color: colorScheme.primary,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _selectedFilter == 'all'
-                              ? 'You don\'t have any orders yet'
-                              : 'No $_selectedFilter orders',
-                          style: TextStyle(color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: orders.length,
-                  itemBuilder: (context, index) {
-                    final order = orders[index];
-                    return OrderCard(
-                      order: order,
-                      onStatusChanged: (newStatus) async {
-                        await ref
-                            .read(orderProvider.notifier)
-                            .updateOrderStatus(order.id, newStatus);
-                      },
+                          const SizedBox(height: 20),
+                          Text(
+                            'No orders found',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _selectedFilter == 'all'
+                                ? 'You don\'t have any orders yet'
+                                : 'No $_selectedFilter orders',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                          ),
+                        ],
+                      ),
                     );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error:
-                  (error, stack) => Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 16),
-                        Text('Error: $error'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            ref.invalidate(orderStreamProvider(filter));
-                          },
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(24),
+                    itemCount: orders.length,
+                    separatorBuilder:
+                        (context, index) => const SizedBox(height: 20),
+                    itemBuilder: (context, index) {
+                      final order = orders[index];
+                      return _OrderCard(
+                        order: order,
+                        onStatusChanged: (newStatus) async {
+                          await ref
+                              .read(orderProvider.notifier)
+                              .updateOrderStatus(order.id, newStatus);
+                        },
+                      );
+                    },
+                  );
+                },
+                loading:
+                    () => _LoadingWithTimeout(onTimeout: () => setState(() {})),
+                error:
+                    (error, stack) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 56,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Something went wrong while loading orders.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.red,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              ref.invalidate(orderStreamProvider(filter));
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primary,
+                              foregroundColor: colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-            ),
-            if (_isRefreshing) const Center(child: CircularProgressIndicator()),
-          ],
+              ),
+              if (_isRefreshing)
+                const Center(child: CircularProgressIndicator()),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class OrderCard extends StatelessWidget {
+/// Widget that shows a loading spinner, but after 10 seconds shows an error message.
+class _LoadingWithTimeout extends StatefulWidget {
+  final VoidCallback? onTimeout;
+  const _LoadingWithTimeout({this.onTimeout});
+
+  @override
+  State<_LoadingWithTimeout> createState() => _LoadingWithTimeoutState();
+}
+
+class _LoadingWithTimeoutState extends State<_LoadingWithTimeout> {
+  bool _timedOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() => _timedOut = true);
+        widget.onTimeout?.call();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_timedOut) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 56, color: Colors.red),
+          const SizedBox(height: 20),
+          Text(
+            'Unable to load orders. Please check your connection or try again.',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.red),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _timedOut = false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
+      );
+    }
+    return const Center(child: CircularProgressIndicator());
+  }
+}
+
+class _OrderCard extends StatelessWidget {
   final OrderModel order;
   final Function(String) onStatusChanged;
 
-  const OrderCard({
+  const _OrderCard({
     required this.order,
     required this.onStatusChanged,
     super.key,
@@ -189,9 +294,8 @@ class OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final dateFormat = DateFormat('MMM dd, yyyy • hh:mm a');
-
-    // Status color mapping
     final statusColors = {
       'pending': Colors.orange,
       'processing': Colors.blue,
@@ -199,22 +303,16 @@ class OrderCard extends StatelessWidget {
       'delivered': Colors.green,
       'cancelled': Colors.red,
     };
-
     final statusColor = statusColors[order.status] ?? Colors.grey;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Order header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -226,7 +324,7 @@ class OrderCard extends StatelessWidget {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
@@ -244,25 +342,17 @@ class OrderCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 8),
-
-            // Order date
             Text(
               'Placed on ${dateFormat.format(order.createdAt)}',
               style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
-
             const Divider(height: 24),
-
-            // Order items
             Text(
               'Items (${order.items.length})',
               style: theme.textTheme.titleSmall,
             ),
-
             const SizedBox(height: 8),
-
             ...List.generate(
               order.items.length > 3 ? 3 : order.items.length,
               (index) => Padding(
@@ -273,7 +363,7 @@ class OrderCard extends StatelessWidget {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
+                        color: colorScheme.primary,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -296,22 +386,15 @@ class OrderCard extends StatelessWidget {
                 ),
               ),
             ),
-
             if (order.items.length > 3)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '+ ${order.items.length - 3} more items',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: colorScheme.primary, fontSize: 14),
                 ),
               ),
-
             const Divider(height: 24),
-
-            // Order total
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -324,10 +407,7 @@ class OrderCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
-
-            // Status update dropdown
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(

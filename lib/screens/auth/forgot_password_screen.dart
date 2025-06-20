@@ -1,6 +1,7 @@
 import 'package:car_accessories/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../widgets/custom_button.dart';
 import 'package:flutter/services.dart';
 
@@ -28,21 +29,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back button
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  padding: EdgeInsets.zero,
-                  alignment: Alignment.centerLeft,
-                  onPressed: () {
-                    // Add haptic feedback
-                    HapticFeedback.lightImpact();
-                    Navigator.pop(context);
-                  },
-                ),
-
-                const SizedBox(height: 30),
-
-                // Header section
                 Text(
                   'Reset Password',
                   style: theme.textTheme.headlineMedium?.copyWith(
@@ -143,7 +129,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       onPressed: () {
                         // Add haptic feedback
                         HapticFeedback.lightImpact();
-                        Navigator.pop(context);
+                        context.go("/login");
                       },
                       child: Text(
                         'Back to Login',

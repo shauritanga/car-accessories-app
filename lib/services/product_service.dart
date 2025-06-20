@@ -70,7 +70,6 @@ class ProductService {
             products.add(product);
           }
         } catch (e) {
-          print('Error converting document ${doc.id}: $e');
           // Continue processing other documents
         }
       }

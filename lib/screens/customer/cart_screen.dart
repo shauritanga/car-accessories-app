@@ -1,11 +1,10 @@
-import 'package:car_accessories/models/order_model.dart';
-import 'package:car_accessories/providers/auth_provider.dart';
-import 'package:car_accessories/providers/order_provider.dart';
+import 'package:car_accessories/router/app_router.dart';
 import 'package:car_accessories/widgets/cart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/cart_provider.dart';
+import 'checkout_screen.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -13,7 +12,6 @@ class CartScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.watch(cartProvider);
-    final currentUser = ref.watch(currentUserProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -90,7 +88,8 @@ class CartScreen extends ConsumerWidget {
                     ElevatedButton.icon(
                       icon: const Icon(Icons.shopping_bag_outlined),
                       label: const Text('Continue Shopping'),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed:
+                          () => context.goNamed(AppRoute.customerBrowse.name),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
@@ -203,20 +202,43 @@ class CartScreen extends ConsumerWidget {
 
                         const SizedBox(height: 16),
 
-                        // Subtotal, Delivery Fee, Discount
+                        // Subtotal, Delivery Fee, Tax, Discount
                         _buildSummaryRow(
                           'Subtotal',
-                          'TZS ${cart.subtotal.toStringAsFixed(2)}',
+                          cart.formattedSubtotal,
                           theme,
                         ),
-                        const SizedBox(height: 8),
-                        _buildSummaryRow('Delivery Fee', 'TZS 5.00', theme),
                         const SizedBox(height: 8),
                         _buildSummaryRow(
-                          'Discount',
-                          '${cart.discountPercentage.toStringAsFixed(0)}%',
+                          'Delivery Fee',
+                          cart.formattedDeliveryFee,
                           theme,
                         ),
+                        const SizedBox(height: 8),
+                        _buildSummaryRow(
+                          'Tax (VAT 18%)',
+                          cart.formattedTax,
+                          theme,
+                        ),
+                        const SizedBox(height: 8),
+                        if (cart.hasDiscount) ...[
+                          _buildSummaryRow(
+                            'Discount',
+                            '-${cart.formattedTotalSavings}',
+                            theme,
+                            isDiscount: true,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        if (cart.appliedCouponCode != null) ...[
+                          _buildSummaryRow(
+                            'Coupon (${cart.appliedCouponCode})',
+                            '-${cart.formattedCouponDiscount}',
+                            theme,
+                            isDiscount: true,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
 
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -234,7 +256,7 @@ class CartScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              'TZS ${cart.total.toStringAsFixed(2)}',
+                              cart.formattedTotal,
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colorScheme.primary,
@@ -273,51 +295,14 @@ class CartScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          onPressed: () async {
+                          onPressed: () {
                             if (cart.items.isEmpty) return;
-                            try {
-                              final List<OrderItem> items =
-                                  cart.items.map((item) {
-                                    return OrderItem(
-                                      productId: item.id,
-                                      price: item.price,
-                                      quantity: item.quantity,
-                                      sellerId: item.sellerId,
-                                    );
-                                  }).toList();
-
-                              final order = OrderModel(
-                                id: const Uuid().v4(),
-                                customerId: currentUser!.id,
-                                sellerId: cart.items[0].sellerId,
-                                items: items,
-                                total: cart.total,
-                                status: 'pending',
-                                createdAt: DateTime.now(),
-                              );
-
-                              await ref
-                                  .read(orderProvider.notifier)
-                                  .placeOrder(order);
-                              ref.read(cartProvider.notifier).clearCart();
-
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Order placed successfully'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                                Navigator.pushNamed(context, '/checkout');
-                              }
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error: ${e.toString()}'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CheckoutScreen(),
+                              ),
+                            );
                           },
                         ),
                       ],
@@ -328,7 +313,12 @@ class CartScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, ThemeData theme) {
+  Widget _buildSummaryRow(
+    String label,
+    String value,
+    ThemeData theme, {
+    bool isDiscount = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -342,6 +332,7 @@ class CartScreen extends ConsumerWidget {
           value,
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w500,
+            color: isDiscount ? Colors.green : null,
           ),
         ),
       ],

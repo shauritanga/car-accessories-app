@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../models/order_model.dart';
+import '../models/cart_item_model.dart';
 
 class OrderFilter {
   final String userId;
@@ -20,6 +22,64 @@ class OrderNotifier extends StateNotifier<List<OrderModel>> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   OrderNotifier() : super([]);
+
+  Future<OrderModel> createOrder({
+    required String customerId,
+    required List<CartItemModel> items,
+    required String deliveryAddress,
+    String? deliveryInstructions,
+  }) async {
+    try {
+      final orderId = const Uuid().v4();
+      final orderItems =
+          items
+              .map(
+                (item) => OrderItem(
+                  productId: item.id,
+                  price: item.price,
+                  quantity: item.quantity,
+                  sellerId: item.sellerId,
+                ),
+              )
+              .toList();
+
+      final subtotal = items.fold(
+        0.0,
+        (accumulator, item) => accumulator + (item.price * item.quantity),
+      );
+      final shippingCost = 5000.0; // TZS 5,000 delivery fee
+      final tax = subtotal * 0.18; // 18% VAT
+      final total = subtotal + shippingCost + tax;
+
+      final order = OrderModel(
+        id: orderId,
+        customerId: customerId,
+        sellerId: items.first.sellerId, // Assuming single seller for now
+        items: orderItems,
+        subtotal: subtotal,
+        shippingCost: shippingCost,
+        tax: tax,
+        total: total,
+        status: 'pending',
+        createdAt: DateTime.now(),
+        estimatedDeliveryDate: DateTime.now().add(const Duration(days: 3)),
+        deliveryAddress: deliveryAddress,
+        deliveryInstructions: deliveryInstructions,
+        statusHistory: [
+          OrderStatusUpdate(
+            status: 'pending',
+            description: 'Order placed successfully',
+            timestamp: DateTime.now(),
+          ),
+        ],
+      );
+
+      await _firestore.collection('orders').doc(order.id).set(order.toMap());
+      return order;
+    } catch (e) {
+      throw Exception('Failed to create order: $e');
+    }
+  }
 
   Future<void> placeOrder(OrderModel order) async {
     try {

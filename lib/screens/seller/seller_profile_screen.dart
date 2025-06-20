@@ -11,6 +11,7 @@ class SellerProfileScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final authNotifier = ref.read(authProvider.notifier);
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     if (user == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -19,6 +20,9 @@ class SellerProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Seller Profile'),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -37,154 +41,136 @@ class SellerProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Profile header
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: theme.colorScheme.primary,
-                    child: Text(
-                      user.name?.substring(0, 1).toUpperCase() ?? 'S',
-                      style: const TextStyle(fontSize: 40, color: Colors.white),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [colorScheme.primary.withOpacity(0.05), colorScheme.background],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Card(
+                  elevation: 6,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 54,
+                          backgroundColor: colorScheme.primary,
+                          child: Text(
+                            user.name?.substring(0, 1).toUpperCase() ?? 'S',
+                            style: const TextStyle(fontSize: 44, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          user.name ?? 'Seller',
+                          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+                        ),
+                        Text(
+                          user.email ?? '',
+                          style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withOpacity(0.13),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Text(
+                            'Seller Account',
+                            style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    user.name ?? 'Seller',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+              ),
+              const SizedBox(height: 36),
+              _ProfileSection(
+                title: 'Business Information',
+                items: [
+                  _ProfileItem(
+                    icon: Icons.store_outlined,
+                    title: 'Store Details',
+                    onTap: () {},
                   ),
-                  Text(
-                    user.email ?? '',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                  _ProfileItem(
+                    icon: Icons.payment_outlined,
+                    title: 'Payment Methods',
+                    onTap: () {},
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Seller Account',
-                      style: TextStyle(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  _ProfileItem(
+                    icon: Icons.lock_outline,
+                    title: 'Change Password',
+                    onTap: () {},
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Profile sections
-            ProfileSection(
-              title: 'Business Information',
-              items: [
-                ProfileItem(
-                  icon: Icons.store_outlined,
-                  title: 'Store Details',
-                  onTap: () {
-                    // Navigate to store details screen
-                  },
-                ),
-                ProfileItem(
-                  icon: Icons.payment_outlined,
-                  title: 'Payment Methods',
-                  onTap: () {
-                    // Navigate to payment methods screen
-                  },
-                ),
-                ProfileItem(
-                  icon: Icons.lock_outline,
-                  title: 'Change Password',
-                  onTap: () {
-                    // Navigate to change password screen
-                  },
-                ),
-              ],
-            ),
-
-            ProfileSection(
-              title: 'Sales & Inventory',
-              items: [
-                ProfileItem(
-                  icon: Icons.analytics_outlined,
-                  title: 'Sales Analytics',
-                  onTap: () {
-                    // Navigate to sales analytics
-                  },
-                ),
-                ProfileItem(
-                  icon: Icons.inventory_2_outlined,
-                  title: 'Inventory Management',
-                  onTap: () {
-                    context.push('/seller/add-product');
-                  },
-                ),
-                ProfileItem(
-                  icon: Icons.reviews_outlined,
-                  title: 'Customer Reviews',
-                  onTap: () {
-                    // Navigate to customer reviews
-                  },
-                ),
-              ],
-            ),
-
-            ProfileSection(
-              title: 'App Settings',
-              items: [
-                ProfileItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifications',
-                  onTap: () {
-                    // Navigate to notifications settings
-                  },
-                ),
-                ProfileItem(
-                  icon: Icons.help_outline,
-                  title: 'Help & Support',
-                  onTap: () {
-                    // Navigate to help & support
-                  },
-                ),
-                ProfileItem(
-                  icon: Icons.info_outline,
-                  title: 'About',
-                  onTap: () {
-                    // Navigate to about screen
-                  },
-                ),
-              ],
-            ),
-          ],
+              _ProfileSection(
+                title: 'Sales & Inventory',
+                items: [
+                  _ProfileItem(
+                    icon: Icons.analytics_outlined,
+                    title: 'Sales Analytics',
+                    onTap: () {},
+                  ),
+                  _ProfileItem(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Inventory Management',
+                    onTap: () {
+                      context.push('/seller/inventory');
+                    },
+                  ),
+                  _ProfileItem(
+                    icon: Icons.reviews_outlined,
+                    title: 'Customer Reviews',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              _ProfileSection(
+                title: 'App Settings',
+                items: [
+                  _ProfileItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notifications',
+                    onTap: () {},
+                  ),
+                  _ProfileItem(
+                    icon: Icons.help_outline,
+                    title: 'Help & Support',
+                    onTap: () {},
+                  ),
+                  _ProfileItem(
+                    icon: Icons.info_outline,
+                    title: 'About',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class ProfileSection extends StatelessWidget {
+class _ProfileSection extends StatelessWidget {
   final String title;
-  final List<ProfileItem> items;
-
-  const ProfileSection({required this.title, required this.items, super.key});
-
+  final List<_ProfileItem> items;
+  const _ProfileSection({required this.title, required this.items, super.key});
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -194,15 +180,13 @@ class ProfileSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         Card(
-          elevation: 0,
+          elevation: 2,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: Colors.grey[200]!),
           ),
           child: Column(children: items),
@@ -213,18 +197,11 @@ class ProfileSection extends StatelessWidget {
   }
 }
 
-class ProfileItem extends StatelessWidget {
+class _ProfileItem extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
-
-  const ProfileItem({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    super.key,
-  });
-
+  const _ProfileItem({required this.icon, required this.title, required this.onTap, super.key});
   @override
   Widget build(BuildContext context) {
     return ListTile(

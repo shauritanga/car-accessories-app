@@ -1,6 +1,7 @@
+import 'package:car_accessories/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../models/inventory_model.dart';
@@ -14,101 +15,162 @@ class InventoryScreen extends ConsumerStatefulWidget {
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
 }
 
-class _InventoryScreenState extends ConsumerState<InventoryScreen>
-    with SingleTickerProviderStateMixin {
-  late final SlidableController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = SlidableController(this);
-  }
-
+class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final inventoryAsync =
         user != null
             ? ref.watch(inventoryStreamProvider(user.id))
-            : const AsyncValue.data(
-              <InventoryModel>[],
-            ); // Empty list if no user
+            : const AsyncValue.data(<InventoryModel>[]);
     final inventoryNotifier = ref.read(inventoryProvider.notifier);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventory')),
-      body: inventoryAsync.when(
-        data: (items) {
-          if (items.isEmpty) {
-            return const Center(child: Text('No inventory items'));
-          }
-          return ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return Dismissible(
-                key: ValueKey(item.id),
-                confirmDismiss: (direction) async {
-                  if (direction == DismissDirection.endToStart) {
-                    return await showDialog(
-                      context: context,
-                      builder:
-                          (context) => AlertDialog(
-                            title: const Text('Delete Inventory'),
-                            content: const Text(
-                              'Are you sure you want to delete this item?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('Cancel'),
+      appBar: AppBar(
+        title: const Text('Inventory'),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: inventoryAsync.when(
+          data: (items) {
+            if (items.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.inventory_2,
+                      size: 80,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'No inventory items',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: colorScheme.onBackground.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Add products to start selling!',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onBackground.withOpacity(0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.85,
+              ),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return Material(
+                  color: Colors.white,
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(18),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () {
+                      _showEditInventoryDialog(
+                        context,
+                        item,
+                        inventoryNotifier,
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: colorScheme.primary.withOpacity(0.1),
+                                child: Icon(
+                                  Icons.inventory,
+                                  color: colorScheme.primary,
+                                  size: 28,
+                                ),
                               ),
-                              TextButton(
-                                onPressed: () async {
-                                  try {
-                                    await inventoryNotifier.deleteInventory(
-                                      item.id,
-                                    );
-                                    Navigator.pop(context, true);
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed to delete: $e'),
-                                      ),
-                                    );
-                                    Navigator.pop(context, false);
-                                  }
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                                onPressed: () {
+                                  _showEditInventoryDialog(
+                                    context,
+                                    item,
+                                    inventoryNotifier,
+                                  );
                                 },
-                                child: const Text('Delete'),
+                                tooltip: 'Edit',
                               ),
                             ],
                           ),
-                    );
-                  }
-                  return false;
-                },
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                child: InventoryProductCard(
-                  inventory: item,
-                  onPressed: () {
-                    _showEditInventoryDialog(context, item, inventoryNotifier);
-                  },
-                ),
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+                          const SizedBox(height: 18),
+                          Text(
+                            'Product ID: ${item.productId}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onBackground,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Stock: ${item.stock}',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Last Updated:',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onBackground.withOpacity(0.5),
+                            ),
+                          ),
+                          Text(
+                            '${item.lastUpdated.toLocal()}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onBackground.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(child: Text('Error: $error')),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/add_product'),
-        child: const Icon(Icons.add),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.goNamed(AppRoute.addProduct.name),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Product'),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }

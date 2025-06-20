@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'edit_profile_screen.dart';
+import 'address_book_screen.dart';
+import 'payment_methods_screen.dart';
+import 'account_settings_screen.dart';
+import 'account_security_screen.dart';
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -29,9 +35,11 @@ class ProfileScreen extends ConsumerWidget {
                   context.go('/login');
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to sign out: $e')),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to sign out: $e')),
+                  );
+                }
               }
             },
           ),
@@ -79,23 +87,55 @@ class ProfileScreen extends ConsumerWidget {
               items: [
                 ProfileItem(
                   icon: Icons.person_outline,
-                  title: 'Personal Information',
-                  onTap: () {
-                    // Navigate to personal info screen
+                  title: 'Edit Profile',
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen(),
+                      ),
+                    );
+
+                    // Show success message if profile was updated
+                    if (result == true && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text('Profile updated successfully!'),
+                            ],
+                          ),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   },
                 ),
                 ProfileItem(
                   icon: Icons.location_on_outlined,
-                  title: 'Addresses',
+                  title: 'Address Book',
                   onTap: () {
-                    // Navigate to addresses screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddressBookScreen(),
+                      ),
+                    );
                   },
                 ),
                 ProfileItem(
-                  icon: Icons.lock_outline,
-                  title: 'Change Password',
+                  icon: Icons.payment_outlined,
+                  title: 'Payment Methods',
                   onTap: () {
-                    // Navigate to change password screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PaymentMethodsScreen(),
+                      ),
+                    );
                   },
                 ),
               ],
@@ -122,27 +162,61 @@ class ProfileScreen extends ConsumerWidget {
             ),
 
             ProfileSection(
-              title: 'App Settings',
+              title: 'Settings & Security',
               items: [
                 ProfileItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifications',
+                  icon: Icons.settings_outlined,
+                  title: 'Account Settings',
                   onTap: () {
-                    // Navigate to notifications settings
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AccountSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                ProfileItem(
+                  icon: Icons.security_outlined,
+                  title: 'Security & Privacy',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AccountSecurityScreen(),
+                      ),
+                    );
                   },
                 ),
                 ProfileItem(
                   icon: Icons.help_outline,
                   title: 'Help & Support',
                   onTap: () {
-                    // Navigate to help & support
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Help & Support coming soon!'),
+                      ),
+                    );
                   },
                 ),
                 ProfileItem(
                   icon: Icons.info_outline,
                   title: 'About',
                   onTap: () {
-                    // Navigate to about screen
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'Car Accessories',
+                      applicationVersion: '1.0.0',
+                      applicationIcon: const Icon(
+                        Icons.directions_car,
+                        size: 48,
+                      ),
+                      children: [
+                        const Text(
+                          'Your one-stop shop for car accessories and parts.',
+                        ),
+                      ],
+                    );
                   },
                 ),
               ],

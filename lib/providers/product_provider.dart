@@ -44,14 +44,10 @@ class ProductNotifier extends StateNotifier<ProductState> {
     String? model,
   }) async {
     try {
-      print(
-        'Fetching products with: Query=$query, Category=$category, Model=$model',
-      );
       final products =
           await _productService
               .getProducts(query: query, category: category, model: model)
               .first;
-      print('Found ${products.length} products');
       state = state.copyWith(
         products: products,
         query: query,
@@ -59,7 +55,6 @@ class ProductNotifier extends StateNotifier<ProductState> {
         model: model,
       );
     } catch (e) {
-      print('Error fetching products: $e');
       throw Exception('Failed to fetch products: $e');
     }
   }
