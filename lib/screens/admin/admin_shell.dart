@@ -12,10 +12,11 @@ class AdminShell extends StatelessWidget {
       body: navigationShell,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: navigationShell.currentIndex,
-        onTap: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
-        ),
+        onTap:
+            (index) => navigationShell.goBranch(
+              index,
+              initialLocation: index == navigationShell.currentIndex,
+            ),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.blue.shade700,
         unselectedItemColor: Colors.grey,
