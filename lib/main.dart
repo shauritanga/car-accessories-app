@@ -1,4 +1,5 @@
 import 'package:car_accessories/config/supabase_config.dart';
+import 'package:car_accessories/firebase_options.dart';
 import 'package:car_accessories/router/app_router.dart';
 import 'package:car_accessories/services/storage_setup_helprt.dart';
 import 'package:car_accessories/services/supabase_auth_brdge.dart';
@@ -7,11 +8,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'firebase_options.dart';
 import 'services/error_handling_service.dart';
 import 'services/backup_service.dart';
 import 'services/monitoring_service.dart';
 import 'dart:developer' as developer;
+//Zerubabel H Nzowa
+//6MekSApSajSvii3hI4tJ
+//1ZOs82E3sXUvpvg2dUV6
+
+//fVAFofUmoSHTxwwGa23u
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,17 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Firebase Storage removed - using Supabase storage only
 import 'dart:io';
 import '../models/review_model.dart';
+import 'supabase_storage_service.dart';
 
 class ReviewService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // Firebase Storage removed - using Supabase storage only
 
   // Add a new review
   Future<void> addReview(ReviewModel review) async {
     try {
       await _firestore.collection('reviews').doc(review.id).set(review.toMap());
-      
+
       // Update product rating summary
       await _updateProductRatingSummary(review.productId);
     } catch (e) {
@@ -22,10 +23,11 @@ class ReviewService {
   // Update an existing review
   Future<void> updateReview(ReviewModel review) async {
     try {
-      await _firestore.collection('reviews').doc(review.id).update(
-        review.copyWith(updatedAt: DateTime.now()).toMap(),
-      );
-      
+      await _firestore
+          .collection('reviews')
+          .doc(review.id)
+          .update(review.copyWith(updatedAt: DateTime.now()).toMap());
+
       // Update product rating summary
       await _updateProductRatingSummary(review.productId);
     } catch (e) {
@@ -37,7 +39,7 @@ class ReviewService {
   Future<void> deleteReview(String reviewId, String productId) async {
     try {
       await _firestore.collection('reviews').doc(reviewId).delete();
-      
+
       // Update product rating summary
       await _updateProductRatingSummary(productId);
     } catch (e) {
@@ -46,7 +48,8 @@ class ReviewService {
   }
 
   // Get reviews for a product
-  Stream<List<ReviewModel>> getProductReviews(String productId, {
+  Stream<List<ReviewModel>> getProductReviews(
+    String productId, {
     int? limit,
     String? orderBy = 'createdAt',
     bool descending = true,
@@ -63,8 +66,17 @@ class ReviewService {
       query = query.limit(limit);
     }
 
-    return query.snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => ReviewModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList());
+    return query.snapshots().map(
+      (snapshot) =>
+          snapshot.docs
+              .map(
+                (doc) => ReviewModel.fromMap(
+                  doc.data() as Map<String, dynamic>,
+                  doc.id,
+                ),
+              )
+              .toList(),
+    );
   }
 
   // Get reviews by a specific user
@@ -74,19 +86,27 @@ class ReviewService {
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => ReviewModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => ReviewModel.fromMap(doc.data(), doc.id))
+                  .toList(),
+        );
   }
 
   // Check if user has already reviewed a product
-  Future<ReviewModel?> getUserReviewForProduct(String userId, String productId) async {
+  Future<ReviewModel?> getUserReviewForProduct(
+    String userId,
+    String productId,
+  ) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('reviews')
-          .where('userId', isEqualTo: userId)
-          .where('productId', isEqualTo: productId)
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection('reviews')
+              .where('userId', isEqualTo: userId)
+              .where('productId', isEqualTo: productId)
+              .limit(1)
+              .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final doc = querySnapshot.docs.first;
@@ -99,22 +119,27 @@ class ReviewService {
   }
 
   // Upload review images
-  Future<List<String>> uploadReviewImages(List<File> images, String reviewId) async {
+  Future<List<String>> uploadReviewImages(
+    List<File> images,
+    String reviewId,
+  ) async {
     try {
       final List<String> imageUrls = [];
-      
+
       for (int i = 0; i < images.length; i++) {
         final file = images[i];
-        final fileName = '${reviewId}_$i.jpg';
-        final ref = _storage.ref().child('reviews').child(fileName);
-        
-        final uploadTask = ref.putFile(file);
-        final snapshot = await uploadTask;
-        final downloadUrl = await snapshot.ref.getDownloadURL();
-        
-        imageUrls.add(downloadUrl);
+        final customPath = 'reviews/${reviewId}_$i';
+
+        final url = await SupabaseStorageService.uploadImage(
+          file: file,
+          customPath: customPath,
+        );
+
+        if (url != null) {
+          imageUrls.add(url);
+        }
       }
-      
+
       return imageUrls;
     } catch (e) {
       throw Exception('Failed to upload review images: $e');
@@ -135,14 +160,16 @@ class ReviewService {
   // Get review summary for a product
   Future<ReviewSummary> getProductReviewSummary(String productId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('reviews')
-          .where('productId', isEqualTo: productId)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection('reviews')
+              .where('productId', isEqualTo: productId)
+              .get();
 
-      final reviews = querySnapshot.docs
-          .map((doc) => ReviewModel.fromMap(doc.data(), doc.id))
-          .toList();
+      final reviews =
+          querySnapshot.docs
+              .map((doc) => ReviewModel.fromMap(doc.data(), doc.id))
+              .toList();
 
       return ReviewSummary.fromReviews(reviews);
     } catch (e) {
@@ -154,7 +181,7 @@ class ReviewService {
   Future<void> _updateProductRatingSummary(String productId) async {
     try {
       final summary = await getProductReviewSummary(productId);
-      
+
       await _firestore.collection('products').doc(productId).update({
         'averageRating': summary.averageRating,
         'totalReviews': summary.totalReviews,
@@ -170,23 +197,24 @@ class ReviewService {
   Future<bool> canUserReviewProduct(String userId, String productId) async {
     try {
       // Check if user has purchased this product
-      final orderQuery = await _firestore
-          .collection('orders')
-          .where('customerId', isEqualTo: userId)
-          .where('status', whereIn: ['delivered', 'completed'])
-          .get();
+      final orderQuery =
+          await _firestore
+              .collection('orders')
+              .where('customerId', isEqualTo: userId)
+              .where('status', whereIn: ['delivered', 'completed'])
+              .get();
 
       for (final orderDoc in orderQuery.docs) {
         final orderData = orderDoc.data();
         final items = orderData['items'] as List<dynamic>? ?? [];
-        
+
         for (final item in items) {
           if (item['productId'] == productId) {
             return true;
           }
         }
       }
-      
+
       return false;
     } catch (e) {
       throw Exception('Failed to check review eligibility: $e');
@@ -239,7 +267,16 @@ class ReviewService {
         break;
     }
 
-    return query.snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => ReviewModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList());
+    return query.snapshots().map(
+      (snapshot) =>
+          snapshot.docs
+              .map(
+                (doc) => ReviewModel.fromMap(
+                  doc.data() as Map<String, dynamic>,
+                  doc.id,
+                ),
+              )
+              .toList(),
+    );
   }
 }

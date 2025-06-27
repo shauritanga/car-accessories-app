@@ -1,19 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:car_accessories/providers/onboarding_provider.dart';
+import 'package:car_accessories/providers/onboarding_status_provider.dart';
 
 class OnboardingUtils {
   /// Reset onboarding state for testing purposes
   static Future<void> resetOnboarding(WidgetRef ref) async {
-    await ref.read(onboardingProvider.notifier).resetOnboarding();
+    await ref.read(onboardingActionsProvider).resetOnboarding();
   }
 
-  /// Check if user has seen onboarding
-  static bool hasSeenOnboarding(WidgetRef ref) {
-    return ref.read(onboardingProvider);
+  /// Check if user has seen onboarding (async)
+  static Future<bool> hasSeenOnboarding(WidgetRef ref) async {
+    final asyncValue = ref.read(onboardingStatusProvider);
+    return asyncValue.when(
+      data: (value) => value,
+      loading: () => false,
+      error: (_, __) => false,
+    );
   }
 
   /// Mark onboarding as complete
   static Future<void> markOnboardingComplete(WidgetRef ref) async {
-    await ref.read(onboardingProvider.notifier).markOnboardingComplete();
+    await ref.read(onboardingActionsProvider).markOnboardingComplete();
   }
-} 
+}

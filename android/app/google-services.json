@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "910206601075",
-    "project_id": "car-accessory-dit",
-    "storage_bucket": "car-accessory-dit.firebasestorage.app"
+    "project_number": "518343099919",
+    "project_id": "car-accessories-thy",
+    "storage_bucket": "car-accessories-thy.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:910206601075:android:f04ebd0952016c746fa706",
+        "mobilesdk_app_id": "1:518343099919:android:b9f6d50143e94c3033c57a",
         "android_client_info": {
           "package_name": "com.example.car_accessories"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCm9GLoyOdqN8NNjykRb8CeqvK91NXwFHw"
+          "current_key": "AIzaSyAqzuPeaF31UGSbajh6zrCzG1JgQacDdMg"
         }
       ],
       "services": {

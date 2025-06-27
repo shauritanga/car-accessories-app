@@ -10,6 +10,7 @@ import 'package:car_accessories/screens/customer/product_detail_screen.dart';
 import 'package:car_accessories/screens/customer/enhanced_search_screen.dart';
 import 'package:car_accessories/screens/splash_screen.dart';
 import 'package:car_accessories/screens/onboarding_screen.dart';
+import 'package:car_accessories/widgets/onboarding_checker.dart';
 import 'package:car_accessories/screens/customer/home_screen.dart';
 import 'package:car_accessories/screens/customer/product_list_screen.dart';
 import 'package:car_accessories/screens/customer/cart_screen.dart';
@@ -147,6 +148,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         name: AppRoute.splash.name,
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding-check',
+        builder: (context, state) => const OnboardingChecker(),
       ),
       GoRoute(
         path: '/onboarding',

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:car_accessories/screens/customer/enhanced_order_history_screen.dart';
+import 'package:car_accessories/widgets/debug_onboarding_reset.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   final String userRole;
@@ -113,7 +114,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: screens),
+      body: Stack(
+        children: [
+          IndexedStack(index: _selectedIndex, children: screens),
+          const DebugOnboardingReset(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {

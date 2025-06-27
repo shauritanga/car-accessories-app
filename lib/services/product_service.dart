@@ -1,41 +1,44 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/product_model.dart';
+import 'supabase_storage_service.dart';
 import 'dart:io';
 
 class ProductService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   Future<void> addProduct(ProductModel product, List<XFile> images) async {
     try {
       List<String> imageUrls = [];
 
-      // Upload images with progress tracking
-      for (int i = 0; i < images.length; i++) {
-        String fileName =
-            'product_images/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-        Reference ref = _storage.ref().child(fileName);
-
-        // Add metadata for better organization
-        await ref.putFile(
-          File(images[i].path),
-          SettableMetadata(
-            contentType: 'image/jpeg',
-            customMetadata: {
-              'productId': product.id,
-              'uploadedAt': DateTime.now().toIso8601String(),
-            },
-          ),
+      // Check if product already has image URLs (from Supabase upload)
+      if (product.images.isNotEmpty) {
+        // Use existing image URLs (already uploaded to Supabase)
+        imageUrls = product.images;
+        print(
+          'ProductService: Using existing image URLs from Supabase: ${imageUrls.length} images',
         );
+      } else if (images.isNotEmpty) {
+        // Upload images to Supabase if no URLs provided
+        print('ProductService: Uploading ${images.length} images to Supabase');
+        for (int i = 0; i < images.length; i++) {
+          final file = File(images[i].path);
+          final customPath =
+              'products/${product.id}_${DateTime.now().millisecondsSinceEpoch}_$i';
 
-        String url = await ref.getDownloadURL();
-        imageUrls.add(url);
+          final url = await SupabaseStorageService.uploadImage(
+            file: file,
+            customPath: customPath,
+          );
+
+          if (url != null) {
+            imageUrls.add(url);
+          }
+        }
       }
 
       // Create a new product with the image URLs and additional metadata
-      product = ProductModel(
+      final productToSave = ProductModel(
         id: product.id,
         name: product.name,
         description: product.description,
@@ -46,16 +49,24 @@ class ProductService {
         stock: product.stock,
         images: imageUrls,
         rating: product.rating,
+        videos: product.videos,
+      );
+
+      print(
+        'ProductService: Saving product to Firestore with ${imageUrls.length} image URLs',
       );
 
       // Add the product to Firestore with timestamp
       await _firestore.collection('products').doc(product.id).set({
-        ...product.toMap(),
+        ...productToSave.toMap(),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'isActive': true,
       });
+
+      print('ProductService: Product saved successfully to Firestore');
     } catch (e) {
+      print('ProductService: Error adding product: $e');
       throw Exception('Failed to add product: $e');
     }
   }

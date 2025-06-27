@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:car_accessories/providers/onboarding_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -22,7 +21,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Set status bar to transparent
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -41,29 +40,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
     );
 
-    _logoScale = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _logoController,
-      curve: Curves.elasticOut,
-    ));
+    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
+    );
 
-    _logoRotation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _logoController,
-      curve: const Interval(0.0, 0.5, curve: Curves.easeInOut),
-    ));
+    _logoRotation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeInOut),
+      ),
+    );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeIn,
-    ));
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
     _startAnimations();
   }
@@ -71,23 +62,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void _startAnimations() async {
     await Future.delayed(const Duration(milliseconds: 500));
     _logoController.forward();
-    
+
     await Future.delayed(const Duration(milliseconds: 800));
     _fadeController.forward();
-    
+
     await Future.delayed(const Duration(milliseconds: 2000));
     _checkOnboardingStatus();
   }
 
   void _checkOnboardingStatus() {
-    final hasSeenOnboarding = ref.read(onboardingProvider);
-    
+    // Navigate to onboarding checker which will handle the async loading
     if (mounted) {
-      if (hasSeenOnboarding) {
-        context.go('/login');
-      } else {
-        context.go('/onboarding');
-      }
+      context.go('/onboarding-check');
     }
   }
 
@@ -136,7 +122,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               borderRadius: BorderRadius.circular(30),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -227,4 +213,4 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
   }
-} 
+}

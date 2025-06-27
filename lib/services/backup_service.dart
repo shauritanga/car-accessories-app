@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Firebase Storage removed - using Supabase storage only
+import 'supabase_storage_service.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -14,7 +15,7 @@ class BackupService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // Firebase Storage removed - using Supabase storage only
   final ErrorHandlingService _errorHandler = ErrorHandlingService();
 
   // Backup types
@@ -277,8 +278,21 @@ class BackupService {
     final backupJson = jsonEncode(backupData);
     final backupBytes = utf8.encode(backupJson);
 
-    final storageRef = _storage.ref().child('backups/$backupId.json');
-    await storageRef.putData(Uint8List.fromList(backupBytes));
+    // Create a temporary file for upload to Supabase
+    final tempFile = File('${Directory.systemTemp.path}/$backupId.json');
+    await tempFile.writeAsBytes(backupBytes);
+
+    try {
+      await SupabaseStorageService.uploadImage(
+        file: tempFile,
+        customPath: 'backups/$backupId.json',
+      );
+    } finally {
+      // Clean up temporary file
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+    }
   }
 
   // Restore backup
@@ -294,29 +308,34 @@ class BackupService {
       final backupData = backupDoc.data()!;
       final backupType = backupData['backupType'] as String;
 
-      // Download backup data from Storage
-      final storageRef = _storage.ref().child('backups/$backupId.json');
-      final backupBytes = await storageRef.getData();
-      final backupJson = utf8.decode(backupBytes!);
-      final fullBackupData = jsonDecode(backupJson) as Map<String, dynamic>;
+      // TODO: Implement Supabase storage download for backup restoration
+      // Temporarily disabled - Firebase Storage removed
+      throw UnimplementedError(
+        'Backup restoration temporarily disabled - Firebase Storage removed',
+      );
+
+      // final storageRef = _storage.ref().child('backups/$backupId.json');
+      // final backupBytes = await storageRef.getData();
+      // final backupJson = utf8.decode(backupBytes!);
+      // final fullBackupData = jsonDecode(backupJson) as Map<String, dynamic>;
 
       // Restore data based on backup type
-      switch (backupType) {
-        case fullBackup:
-          await _restoreFullBackup(fullBackupData['data']);
-          break;
-        case userDataBackup:
-          await _restoreUserDataBackup(fullBackupData['data']);
-          break;
-        case ordersBackup:
-          await _restoreOrdersBackup(fullBackupData['data']);
-          break;
-        case productsBackup:
-          await _restoreProductsBackup(fullBackupData['data']);
-          break;
-        default:
-          throw Exception('Invalid backup type: $backupType');
-      }
+      // switch (backupType) {
+      //   case fullBackup:
+      //     await _restoreFullBackup(fullBackupData['data']);
+      //     break;
+      //   case userDataBackup:
+      //     await _restoreUserDataBackup(fullBackupData['data']);
+      //     break;
+      //   case ordersBackup:
+      //     await _restoreOrdersBackup(fullBackupData['data']);
+      //     break;
+      //   case productsBackup:
+      //     await _restoreProductsBackup(fullBackupData['data']);
+      //     break;
+      //   default:
+      //     throw Exception('Invalid backup type: $backupType');
+      // }
 
       // Log restore operation
       await _errorHandler.logError(
@@ -510,9 +529,10 @@ class BackupService {
       // Delete from Firestore
       await _firestore.collection('backups').doc(backupId).delete();
 
-      // Delete from Storage
-      final storageRef = _storage.ref().child('backups/$backupId.json');
-      await storageRef.delete();
+      // TODO: Implement Supabase storage deletion
+      // Temporarily disabled - Firebase Storage removed
+      // final storageRef = _storage.ref().child('backups/$backupId.json');
+      // await storageRef.delete();
 
       await _errorHandler.logError(
         error: 'Backup deleted successfully',
@@ -534,23 +554,28 @@ class BackupService {
   // Export backup to local file
   Future<String> exportBackupToLocal(String backupId) async {
     try {
-      // Download backup data
-      final storageRef = _storage.ref().child('backups/$backupId.json');
-      final backupBytes = await storageRef.getData();
-      final backupJson = utf8.decode(backupBytes!);
+      // TODO: Implement Supabase storage download for export
+      // Temporarily disabled - Firebase Storage removed
+      throw UnimplementedError(
+        'Backup export temporarily disabled - Firebase Storage removed',
+      );
+
+      // final storageRef = _storage.ref().child('backups/$backupId.json');
+      // final backupBytes = await storageRef.getData();
+      // final backupJson = utf8.decode(backupBytes!);
 
       // Get app documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final backupDir = Directory('${directory.path}/backups');
-      if (!await backupDir.exists()) {
-        await backupDir.create(recursive: true);
-      }
+      // final directory = await getApplicationDocumentsDirectory();
+      // final backupDir = Directory('${directory.path}/backups');
+      // if (!await backupDir.exists()) {
+      //   await backupDir.create(recursive: true);
+      // }
 
       // Save to local file
-      final file = File('${backupDir.path}/$backupId.json');
-      await file.writeAsString(backupJson);
+      // final file = File('${backupDir.path}/$backupId.json');
+      // await file.writeAsString(backupJson);
 
-      return file.path;
+      // return file.path;
     } catch (e) {
       await _errorHandler.logError(
         error: e.toString(),

@@ -4,12 +4,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDIqRL1JUfHzrjNKAC4vwPna4Rs0iEtgYg",
-  authDomain: "car-accessory-dit.firebaseapp.com",
-  projectId: "car-accessory-dit",
-  storageBucket: "car-accessory-dit.firebasestorage.app",
-  messagingSenderId: "910206601075",
-  appId: "1:910206601075:web:f1e89fed2864dd9d6fa706"
+  apiKey: "AIzaSyCxXTS1V8B3ryj3DNVWkgjhU6vckAoDy78",
+  authDomain: "car-accessories-thy.firebaseapp.com",
+  projectId: "car-accessories-thy",
+  storageBucket: "car-accessories-thy.firebasestorage.app",
+  messagingSenderId: "518343099919",
+  appId: "1:518343099919:web:c8996c42081efef533c57a"
 };
 
 

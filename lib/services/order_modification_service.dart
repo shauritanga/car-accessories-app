@@ -1,18 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Firebase Storage removed - using Supabase storage only
 import 'dart:io';
 import '../models/order_modification_model.dart';
-import '../models/order_model.dart';
+import 'supabase_storage_service.dart';
 
 class OrderModificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // Firebase Storage removed - using Supabase storage only
 
   // Submit a new modification request
   Future<void> submitModificationRequest(OrderModificationModel request) async {
     try {
-      await _firestore.collection('order_modifications').doc(request.id).set(request.toMap());
-      
+      await _firestore
+          .collection('order_modifications')
+          .doc(request.id)
+          .set(request.toMap());
+
       // Update order status if it's a cancellation
       if (request.type == ModificationType.cancellation) {
         await _firestore.collection('orders').doc(request.orderId).update({
@@ -47,7 +50,10 @@ class OrderModificationService {
         updateData['completedAt'] = FieldValue.serverTimestamp();
       }
 
-      await _firestore.collection('order_modifications').doc(requestId).update(updateData);
+      await _firestore
+          .collection('order_modifications')
+          .doc(requestId)
+          .update(updateData);
 
       // Update order status based on modification type and status
       final request = await getModificationRequest(requestId);
@@ -60,9 +66,15 @@ class OrderModificationService {
   }
 
   // Get modification request by ID
-  Future<OrderModificationModel?> getModificationRequest(String requestId) async {
+  Future<OrderModificationModel?> getModificationRequest(
+    String requestId,
+  ) async {
     try {
-      final doc = await _firestore.collection('order_modifications').doc(requestId).get();
+      final doc =
+          await _firestore
+              .collection('order_modifications')
+              .doc(requestId)
+              .get();
       if (doc.exists) {
         return OrderModificationModel.fromMap(doc.data()!, doc.id);
       }
@@ -73,27 +85,41 @@ class OrderModificationService {
   }
 
   // Get modification requests for a customer
-  Stream<List<OrderModificationModel>> getCustomerModificationRequests(String customerId) {
+  Stream<List<OrderModificationModel>> getCustomerModificationRequests(
+    String customerId,
+  ) {
     return _firestore
         .collection('order_modifications')
         .where('customerId', isEqualTo: customerId)
         .orderBy('requestedAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => OrderModificationModel.fromMap(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModificationModel.fromMap(doc.data(), doc.id),
+                  )
+                  .toList(),
+        );
   }
 
   // Get modification requests for an order
-  Stream<List<OrderModificationModel>> getOrderModificationRequests(String orderId) {
+  Stream<List<OrderModificationModel>> getOrderModificationRequests(
+    String orderId,
+  ) {
     return _firestore
         .collection('order_modifications')
         .where('orderId', isEqualTo: orderId)
         .orderBy('requestedAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => OrderModificationModel.fromMap(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModificationModel.fromMap(doc.data(), doc.id),
+                  )
+                  .toList(),
+        );
   }
 
   // Check if order can be cancelled
@@ -131,22 +157,27 @@ class OrderModificationService {
   }
 
   // Upload evidence images for modification request
-  Future<List<String>> uploadEvidenceImages(List<File> images, String requestId) async {
+  Future<List<String>> uploadEvidenceImages(
+    List<File> images,
+    String requestId,
+  ) async {
     try {
       final List<String> imageUrls = [];
-      
+
       for (int i = 0; i < images.length; i++) {
         final file = images[i];
-        final fileName = '${requestId}_evidence_$i.jpg';
-        final ref = _storage.ref().child('order_modifications').child(fileName);
-        
-        final uploadTask = ref.putFile(file);
-        final snapshot = await uploadTask;
-        final downloadUrl = await snapshot.ref.getDownloadURL();
-        
-        imageUrls.add(downloadUrl);
+        final customPath = 'order_modifications/${requestId}_evidence_$i';
+
+        final url = await SupabaseStorageService.uploadImage(
+          file: file,
+          customPath: customPath,
+        );
+
+        if (url != null) {
+          imageUrls.add(url);
+        }
       }
-      
+
       return imageUrls;
     } catch (e) {
       throw Exception('Failed to upload evidence images: $e');
@@ -154,16 +185,19 @@ class OrderModificationService {
   }
 
   // Calculate refund amount
-  Future<double> calculateRefundAmount(String orderId, List<String> itemIds) async {
+  Future<double> calculateRefundAmount(
+    String orderId,
+    List<String> itemIds,
+  ) async {
     try {
       final orderDoc = await _firestore.collection('orders').doc(orderId).get();
       if (!orderDoc.exists) return 0.0;
 
       final orderData = orderDoc.data()!;
       final items = orderData['items'] as List<dynamic>;
-      
+
       double refundAmount = 0.0;
-      
+
       if (itemIds.isEmpty) {
         // Full order refund
         refundAmount = (orderData['total'] as num).toDouble();
@@ -178,7 +212,7 @@ class OrderModificationService {
           }
         }
       }
-      
+
       return refundAmount;
     } catch (e) {
       throw Exception('Failed to calculate refund amount: $e');
@@ -201,7 +235,8 @@ class OrderModificationService {
           'refund_processed': true,
           'refund_amount': amount,
           'refund_method': method.toString(),
-          'refund_transaction_id': 'REF_${DateTime.now().millisecondsSinceEpoch}',
+          'refund_transaction_id':
+              'REF_${DateTime.now().millisecondsSinceEpoch}',
         },
       });
     } catch (e) {
@@ -225,7 +260,7 @@ class OrderModificationService {
   Future<Map<String, int>> getModificationStatistics() async {
     try {
       final snapshot = await _firestore.collection('order_modifications').get();
-      
+
       final stats = <String, int>{
         'total': 0,
         'pending': 0,
@@ -236,26 +271,40 @@ class OrderModificationService {
         'returns': 0,
         'refunds': 0,
       };
-      
+
       for (final doc in snapshot.docs) {
         final data = doc.data();
         stats['total'] = (stats['total'] ?? 0) + 1;
-        
+
         final status = data['status'] as String;
         final type = data['type'] as String;
-        
+
         // Count by status
-        if (status.contains('pending')) stats['pending'] = (stats['pending'] ?? 0) + 1;
-        if (status.contains('approved')) stats['approved'] = (stats['approved'] ?? 0) + 1;
-        if (status.contains('rejected')) stats['rejected'] = (stats['rejected'] ?? 0) + 1;
-        if (status.contains('completed')) stats['completed'] = (stats['completed'] ?? 0) + 1;
-        
+        if (status.contains('pending')) {
+          stats['pending'] = (stats['pending'] ?? 0) + 1;
+        }
+        if (status.contains('approved')) {
+          stats['approved'] = (stats['approved'] ?? 0) + 1;
+        }
+        if (status.contains('rejected')) {
+          stats['rejected'] = (stats['rejected'] ?? 0) + 1;
+        }
+        if (status.contains('completed')) {
+          stats['completed'] = (stats['completed'] ?? 0) + 1;
+        }
+
         // Count by type
-        if (type.contains('cancellation')) stats['cancellations'] = (stats['cancellations'] ?? 0) + 1;
-        if (type.contains('return')) stats['returns'] = (stats['returns'] ?? 0) + 1;
-        if (type.contains('refund')) stats['refunds'] = (stats['refunds'] ?? 0) + 1;
+        if (type.contains('cancellation')) {
+          stats['cancellations'] = (stats['cancellations'] ?? 0) + 1;
+        }
+        if (type.contains('return')) {
+          stats['returns'] = (stats['returns'] ?? 0) + 1;
+        }
+        if (type.contains('refund')) {
+          stats['refunds'] = (stats['refunds'] ?? 0) + 1;
+        }
       }
-      
+
       return stats;
     } catch (e) {
       throw Exception('Failed to get modification statistics: $e');
@@ -268,7 +317,7 @@ class OrderModificationService {
     ModificationStatus status,
   ) async {
     String? newOrderStatus;
-    
+
     if (request.type == ModificationType.cancellation) {
       switch (status) {
         case ModificationStatus.approved:
@@ -292,7 +341,7 @@ class OrderModificationService {
           break;
       }
     }
-    
+
     if (newOrderStatus != null) {
       await _firestore.collection('orders').doc(request.orderId).update({
         'status': newOrderStatus,
