@@ -7,6 +7,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../router/app_router.dart';
+import '../../services/sample_data_service.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen({super.key});
@@ -55,7 +56,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(productProvider.notifier).searchProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load all products initially
+      ref.read(productProvider.notifier).searchProducts();
+    });
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -67,9 +71,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     ref
         .read(productProvider.notifier)
         .searchProducts(
-          query: _searchController.text,
+          query: _searchController.text.isEmpty ? null : _searchController.text,
           category: _selectedCategory,
           model: _selectedBrand,
+          sortBy: _sortBy,
         );
   }
 
@@ -100,6 +105,45 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         scrolledUnderElevation: 1,
         shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
         actions: [
+          // Debug button to create sample products
+          if (productState.products.isEmpty)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.bug_report, color: Colors.orange),
+                onPressed: () async {
+                  try {
+                    final sampleService = SampleDataService();
+                    await sampleService.createSampleProducts();
+                    // Refresh products after creating samples
+                    await ref.read(productProvider.notifier).searchProducts();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Sample products created successfully!',
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error creating sample products: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
@@ -214,10 +258,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
           // Modern Product grid
           Expanded(
-            child:
-                productState.products.isEmpty
-                    ? _buildEmptyState(colorScheme)
-                    : _buildProductGrid(productState, colorScheme),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await ref.read(productProvider.notifier).refreshProducts();
+              },
+              child:
+                  productState.isLoading
+                      ? _buildLoadingState(colorScheme)
+                      : productState.error != null
+                      ? _buildErrorState(colorScheme, productState.error!)
+                      : productState.products.isEmpty
+                      ? _buildEmptyState(colorScheme)
+                      : _buildProductGrid(productState, colorScheme),
+            ),
           ),
         ],
       ),
@@ -271,6 +324,86 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             },
             icon: const Icon(Icons.refresh),
             label: const Text('Clear Filters'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(ColorScheme colorScheme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: CircularProgressIndicator(
+              color: colorScheme.primary,
+              strokeWidth: 3,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Loading products...',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please wait while we fetch the latest products',
+            style: TextStyle(
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ColorScheme colorScheme, String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.error, size: 48, color: Colors.red),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Error: $error',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.red,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () {
+              setState(() {
+                _selectedCategory = null;
+                _selectedBrand = null;
+                _priceRange = const RangeValues(0, 10000000);
+                _sortBy = 'popularity';
+                _searchController.clear();
+              });
+              _applyFilters();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
           ),
         ],
       ),
@@ -347,7 +480,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                         ),
                         child: CachedNetworkImage(
                           imageUrl:
-                              'https://console.firebase.google.com/v1/r/project/car-accessory-dit/firestore/indexes?create_composite=ClFwcm9qZWN0cy9jYXItYWNjZXNzb3J5LWRpdC9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvcmV2aWV3cy9pbmRleGVzL18QARoNCglwcm9kdWN0SWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC',
+                              product.images.isNotEmpty
+                                  ? product.images.first
+                                  : 'https://via.placeholder.com/300x200?text=No+Image',
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,

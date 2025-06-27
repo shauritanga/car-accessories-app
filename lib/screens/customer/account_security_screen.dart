@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_profile_provider.dart';
 import '../../models/user_model.dart';
+import 'security_settings_screen.dart';
 
 class AccountSecurityScreen extends ConsumerStatefulWidget {
   const AccountSecurityScreen({super.key});
@@ -260,14 +261,16 @@ class _AccountSecurityScreenState extends ConsumerState<AccountSecurityScreen> {
   }
 
   void _showLoginActivity() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Login activity feature coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SecuritySettingsScreen()),
     );
   }
 
   void _showActiveSessions() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Active sessions feature coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SecuritySettingsScreen()),
     );
   }
 

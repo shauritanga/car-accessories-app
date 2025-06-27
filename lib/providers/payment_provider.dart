@@ -28,7 +28,8 @@ class PaymentState {
     return PaymentState(
       paymentMethods: paymentMethods ?? this.paymentMethods,
       paymentHistory: paymentHistory ?? this.paymentHistory,
-      selectedPaymentMethod: selectedPaymentMethod ?? this.selectedPaymentMethod,
+      selectedPaymentMethod:
+          selectedPaymentMethod ?? this.selectedPaymentMethod,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
@@ -38,17 +39,7 @@ class PaymentState {
 class PaymentNotifier extends StateNotifier<PaymentState> {
   final PaymentService _paymentService = PaymentService();
 
-  PaymentNotifier() : super(PaymentState()) {
-    _initializeStripe();
-  }
-
-  Future<void> _initializeStripe() async {
-    try {
-      await _paymentService.initializeStripe();
-    } catch (e) {
-      state = state.copyWith(error: 'Failed to initialize payment system: $e');
-    }
-  }
+  PaymentNotifier() : super(PaymentState());
 
   Future<PaymentModel> processPayment({
     required OrderModel order,
@@ -56,14 +47,14 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
     String? paymentMethodId,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final payment = await _paymentService.processPayment(
         order: order,
         paymentMethod: paymentMethod,
         paymentMethodId: paymentMethodId,
       );
-      
+
       state = state.copyWith(isLoading: false);
       return payment;
     } catch (e) {
@@ -74,7 +65,7 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
 
   Future<void> savePaymentMethod(PaymentMethodModel paymentMethod) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       await _paymentService.savePaymentMethod(paymentMethod);
       state = state.copyWith(isLoading: false);
@@ -86,7 +77,7 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
 
   Future<void> deletePaymentMethod(String paymentMethodId) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       await _paymentService.deletePaymentMethod(paymentMethodId);
       state = state.copyWith(isLoading: false);
@@ -96,9 +87,12 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
     }
   }
 
-  Future<void> setDefaultPaymentMethod(String userId, String paymentMethodId) async {
+  Future<void> setDefaultPaymentMethod(
+    String userId,
+    String paymentMethodId,
+  ) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       await _paymentService.setDefaultPaymentMethod(userId, paymentMethodId);
       state = state.copyWith(isLoading: false);
@@ -118,16 +112,20 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
 }
 
 // Providers
-final paymentProvider = StateNotifierProvider<PaymentNotifier, PaymentState>((ref) {
+final paymentProvider = StateNotifierProvider<PaymentNotifier, PaymentState>((
+  ref,
+) {
   return PaymentNotifier();
 });
 
-final paymentMethodsStreamProvider = StreamProvider.family<List<PaymentMethodModel>, String>((ref, userId) {
-  final paymentService = PaymentService();
-  return paymentService.getUserPaymentMethods(userId);
-});
+final paymentMethodsStreamProvider =
+    StreamProvider.family<List<PaymentMethodModel>, String>((ref, userId) {
+      final paymentService = PaymentService();
+      return paymentService.getUserPaymentMethods(userId);
+    });
 
-final paymentHistoryStreamProvider = StreamProvider.family<List<PaymentModel>, String>((ref, userId) {
-  final paymentService = PaymentService();
-  return paymentService.getPaymentHistory(userId);
-});
+final paymentHistoryStreamProvider =
+    StreamProvider.family<List<PaymentModel>, String>((ref, userId) {
+      final paymentService = PaymentService();
+      return paymentService.getPaymentHistory(userId);
+    });

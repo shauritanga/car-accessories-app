@@ -35,6 +35,10 @@ class AdminShell extends StatelessWidget {
             label: 'Orders',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.backup),
+            label: 'Backup',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
             label: 'Analytics',
           ),

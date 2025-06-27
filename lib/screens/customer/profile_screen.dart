@@ -8,6 +8,7 @@ import 'address_book_screen.dart';
 import 'payment_methods_screen.dart';
 import 'account_settings_screen.dart';
 import 'account_security_screen.dart';
+import 'customer_support_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -192,9 +193,10 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.help_outline,
                   title: 'Help & Support',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Help & Support coming soon!'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CustomerSupportScreen(),
                       ),
                     );
                   },

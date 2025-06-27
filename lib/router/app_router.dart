@@ -8,11 +8,11 @@ import 'package:car_accessories/screens/auth/forgot_password_screen.dart';
 import 'package:car_accessories/screens/customer/order_tracking_screen.dart';
 import 'package:car_accessories/screens/customer/product_detail_screen.dart';
 import 'package:car_accessories/screens/customer/enhanced_search_screen.dart';
-
+import 'package:car_accessories/screens/splash_screen.dart';
+import 'package:car_accessories/screens/onboarding_screen.dart';
 import 'package:car_accessories/screens/customer/home_screen.dart';
 import 'package:car_accessories/screens/customer/product_list_screen.dart';
 import 'package:car_accessories/screens/customer/cart_screen.dart';
-import 'package:car_accessories/screens/customer/order_history_screen.dart';
 import 'package:car_accessories/screens/customer/profile_screen.dart';
 import 'package:car_accessories/screens/seller/add_product_screen.dart';
 import 'package:car_accessories/screens/seller/seller_dashboard_screen.dart';
@@ -26,6 +26,9 @@ import 'package:car_accessories/screens/admin/admin_orders_screen.dart';
 import 'package:car_accessories/screens/admin/admin_users_screen.dart';
 import 'package:car_accessories/screens/admin/admin_analytics_screen.dart';
 import 'package:car_accessories/screens/admin/admin_profile_screen.dart';
+import 'package:car_accessories/screens/admin/admin_backup_screen.dart';
+import 'package:car_accessories/screens/customer/enhanced_order_history_screen.dart';
+import 'package:car_accessories/screens/customer/notifications_screen.dart';
 import 'package:car_accessories/services/auth_service.dart';
 import 'package:car_accessories/widgets/customer_shell.dart';
 import 'package:car_accessories/widgets/seller_shell.dart';
@@ -33,6 +36,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 enum AppRoute {
+  splash,
+  onboarding,
   login,
   register,
   forgotPassword,
@@ -45,6 +50,7 @@ enum AppRoute {
   customerCart,
   customerHistory,
   customerProfile,
+  customerNotifications,
   sellerDashboard,
   sellerInventory,
   sellerOrders,
@@ -54,6 +60,7 @@ enum AppRoute {
   adminProducts,
   adminOrders,
   adminUsers,
+  adminBackup,
   adminAnalytics,
   adminProfile,
 }
@@ -65,13 +72,20 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: GoRouterRefreshStream(
       ref.watch(authServiceProvider).authStateChanges,
     ),
-    initialLocation: '/login',
+    initialLocation: '/splash',
     redirect: (context, state) {
       final isLoggedIn = authState.user != null;
       final isGoingToAuth =
           state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
           state.matchedLocation == '/forgot-password';
+      final isGoingToSplash = state.matchedLocation == '/splash';
+      final isGoingToOnboarding = state.matchedLocation == '/onboarding';
+
+      // If going to splash or onboarding, allow it
+      if (isGoingToSplash || isGoingToOnboarding) {
+        return null;
+      }
 
       // If not logged in and not going to auth page, redirect to login
       if (!isLoggedIn && !isGoingToAuth) {
@@ -128,6 +142,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Splash and Onboarding routes
+      GoRoute(
+        path: '/splash',
+        name: AppRoute.splash.name,
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        name: AppRoute.onboarding.name,
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+
       // Auth routes
       GoRoute(
         path: '/login',
@@ -171,6 +197,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                       final order = state.extra as OrderModel;
                       return OrderTrackingScreen(order: order);
                     },
+                  ),
+                  GoRoute(
+                    path: 'notifications',
+                    name: AppRoute.customerNotifications.name,
+                    builder: (context, state) => const NotificationsScreen(),
                   ),
                 ],
               ),
@@ -217,7 +248,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/customer/history',
                 name: AppRoute.customerHistory.name,
-                builder: (context, state) => const OrderHistoryScreen(),
+                builder: (context, state) => const EnhancedOrderHistoryScreen(),
               ),
             ],
           ),
@@ -333,6 +364,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: '/admin/orders',
                 name: AppRoute.adminOrders.name,
                 builder: (context, state) => const AdminOrdersScreen(),
+              ),
+            ],
+          ),
+          // Backup tab
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/backup',
+                name: AppRoute.adminBackup.name,
+                builder: (context, state) => const AdminBackupScreen(),
               ),
             ],
           ),

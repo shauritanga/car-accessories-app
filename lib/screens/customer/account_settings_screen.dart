@@ -19,7 +19,9 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPreferences();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPreferences();
+    });
   }
 
   Future<void> _loadPreferences() async {

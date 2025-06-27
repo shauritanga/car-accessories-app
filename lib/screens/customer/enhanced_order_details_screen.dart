@@ -7,6 +7,7 @@ import '../../providers/order_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/enhanced_order_service.dart';
 import 'order_tracking_screen.dart';
+import 'customer_support_screen.dart';
 
 // Provider for getting a single order by ID
 final singleOrderProvider = StreamProvider.family<OrderModel?, String>((
@@ -899,8 +900,9 @@ class _EnhancedOrderDetailsScreenState
 
   void _getHelp(OrderModel order) {
     // Navigate to help/support screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Customer support feature coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CustomerSupportScreen()),
     );
   }
 

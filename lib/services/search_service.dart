@@ -18,10 +18,17 @@ class SearchService {
       if (filter.query.isNotEmpty) {
         // For better text search, we'd typically use Algolia or similar
         // For now, we'll search in name and description fields
-        final searchTerms = filter.query.toLowerCase().split(' ');
-        
+        final searchTerms =
+            filter.query
+                .toLowerCase()
+                .split(' ')
+                .where((term) => term.isNotEmpty)
+                .toList();
+
         // This is a simplified approach - in production, use proper full-text search
-        query = query.where('searchKeywords', arrayContainsAny: searchTerms);
+        if (searchTerms.isNotEmpty) {
+          query = query.where('searchKeywords', arrayContainsAny: searchTerms);
+        }
       }
 
       // Apply category filter
@@ -39,12 +46,18 @@ class SearchService {
 
       // Apply rating filter
       if (filter.minRating != null) {
-        query = query.where('averageRating', isGreaterThanOrEqualTo: filter.minRating);
+        query = query.where(
+          'averageRating',
+          isGreaterThanOrEqualTo: filter.minRating,
+        );
       }
 
       // Apply compatibility filter
       if (filter.compatibility.isNotEmpty) {
-        query = query.where('compatibility', arrayContainsAny: filter.compatibility);
+        query = query.where(
+          'compatibility',
+          arrayContainsAny: filter.compatibility,
+        );
       }
 
       // Apply availability filter
@@ -93,10 +106,14 @@ class SearchService {
       }
 
       final snapshot = await query.limit(100).get(); // Limit results
-      
-      List<ProductModel> products = snapshot.docs
-          .map((doc) => ProductModel.fromMap(doc.data() as Map<String, dynamic>))
-          .toList();
+
+      List<ProductModel> products =
+          snapshot.docs
+              .map(
+                (doc) =>
+                    ProductModel.fromMap(doc.data() as Map<String, dynamic>),
+              )
+              .toList();
 
       // Apply additional filters that can't be done in Firestore query
       products = _applyAdditionalFilters(products, filter);
@@ -121,20 +138,28 @@ class SearchService {
         // Return recent searches and popular categories
         final history = await getSearchHistory();
         suggestions.addAll(
-          history.take(5).map((h) => SearchSuggestion(
-            text: h.query,
-            type: SearchSuggestionType.recent,
-            resultCount: h.resultCount,
-          )),
+          history
+              .take(5)
+              .map(
+                (h) => SearchSuggestion(
+                  text: h.query,
+                  type: SearchSuggestionType.recent,
+                  resultCount: h.resultCount,
+                ),
+              ),
         );
 
         // Add popular categories
         final categories = await getPopularCategories();
         suggestions.addAll(
-          categories.take(5).map((category) => SearchSuggestion(
-            text: category,
-            type: SearchSuggestionType.category,
-          )),
+          categories
+              .take(5)
+              .map(
+                (category) => SearchSuggestion(
+                  text: category,
+                  type: SearchSuggestionType.category,
+                ),
+              ),
         );
 
         return suggestions;
@@ -143,11 +168,12 @@ class SearchService {
       final lowerQuery = query.toLowerCase();
 
       // Search in products for matching names
-      final productQuery = await _firestore
-          .collection('products')
-          .where('searchKeywords', arrayContains: lowerQuery)
-          .limit(5)
-          .get();
+      final productQuery =
+          await _firestore
+              .collection('products')
+              .where('searchKeywords', arrayContains: lowerQuery)
+              .limit(5)
+              .get();
 
       suggestions.addAll(
         productQuery.docs.map((doc) {
@@ -162,30 +188,34 @@ class SearchService {
 
       // Search in categories
       final categories = await getCategories();
-      final matchingCategories = categories
-          .where((cat) => cat.toLowerCase().contains(lowerQuery))
-          .take(3)
-          .toList();
+      final matchingCategories =
+          categories
+              .where((cat) => cat.toLowerCase().contains(lowerQuery))
+              .take(3)
+              .toList();
 
       suggestions.addAll(
-        matchingCategories.map((category) => SearchSuggestion(
-          text: category,
-          type: SearchSuggestionType.category,
-        )),
+        matchingCategories.map(
+          (category) => SearchSuggestion(
+            text: category,
+            type: SearchSuggestionType.category,
+          ),
+        ),
       );
 
       // Search in brands (if we have a brands collection)
       final brands = await getBrands();
-      final matchingBrands = brands
-          .where((brand) => brand.toLowerCase().contains(lowerQuery))
-          .take(3)
-          .toList();
+      final matchingBrands =
+          brands
+              .where((brand) => brand.toLowerCase().contains(lowerQuery))
+              .take(3)
+              .toList();
 
       suggestions.addAll(
-        matchingBrands.map((brand) => SearchSuggestion(
-          text: brand,
-          type: SearchSuggestionType.brand,
-        )),
+        matchingBrands.map(
+          (brand) =>
+              SearchSuggestion(text: brand, type: SearchSuggestionType.brand),
+        ),
       );
 
       return suggestions;
@@ -197,9 +227,7 @@ class SearchService {
   // Get available categories
   Future<List<String>> getCategories() async {
     try {
-      final snapshot = await _firestore
-          .collection('products')
-          .get();
+      final snapshot = await _firestore.collection('products').get();
 
       final categories = <String>{};
       for (final doc in snapshot.docs) {
@@ -218,9 +246,7 @@ class SearchService {
   // Get available brands
   Future<List<String>> getBrands() async {
     try {
-      final snapshot = await _firestore
-          .collection('products')
-          .get();
+      final snapshot = await _firestore.collection('products').get();
 
       final brands = <String>{};
       for (final doc in snapshot.docs) {
@@ -241,9 +267,7 @@ class SearchService {
     try {
       // This would typically be based on analytics data
       // For now, return categories with most products
-      final snapshot = await _firestore
-          .collection('products')
-          .get();
+      final snapshot = await _firestore.collection('products').get();
 
       final categoryCount = <String, int>{};
       for (final doc in snapshot.docs) {
@@ -254,8 +278,9 @@ class SearchService {
         }
       }
 
-      final sortedCategories = categoryCount.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
+      final sortedCategories =
+          categoryCount.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
 
       return sortedCategories.map((e) => e.key).toList();
     } catch (e) {
@@ -267,13 +292,13 @@ class SearchService {
   Future<Map<String, double>> getPriceRange([String? category]) async {
     try {
       Query query = _firestore.collection('products');
-      
+
       if (category != null) {
         query = query.where('category', isEqualTo: category);
       }
 
       final snapshot = await query.get();
-      
+
       if (snapshot.docs.isEmpty) {
         return {'min': 0.0, 'max': 0.0};
       }
@@ -302,20 +327,24 @@ class SearchService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_searchHistoryKey) ?? [];
-      
-      final history = historyJson
-          .map((json) => SearchHistory.fromMap(jsonDecode(json)))
-          .toList();
+
+      final history =
+          historyJson
+              .map((json) => SearchHistory.fromMap(jsonDecode(json)))
+              .toList();
 
       // Remove existing entry if it exists
       history.removeWhere((h) => h.query.toLowerCase() == query.toLowerCase());
 
       // Add new entry at the beginning
-      history.insert(0, SearchHistory(
-        query: query,
-        timestamp: DateTime.now(),
-        resultCount: resultCount,
-      ));
+      history.insert(
+        0,
+        SearchHistory(
+          query: query,
+          timestamp: DateTime.now(),
+          resultCount: resultCount,
+        ),
+      );
 
       // Keep only the most recent entries
       if (history.length > _maxHistoryItems) {
@@ -335,7 +364,7 @@ class SearchService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_searchHistoryKey) ?? [];
-      
+
       return historyJson
           .map((json) => SearchHistory.fromMap(jsonDecode(json)))
           .toList();
@@ -357,11 +386,12 @@ class SearchService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_searchHistoryKey) ?? [];
-      
-      final history = historyJson
-          .map((json) => SearchHistory.fromMap(jsonDecode(json)))
-          .where((h) => h.query.toLowerCase() != query.toLowerCase())
-          .toList();
+
+      final history =
+          historyJson
+              .map((json) => SearchHistory.fromMap(jsonDecode(json)))
+              .where((h) => h.query.toLowerCase() != query.toLowerCase())
+              .toList();
 
       final updatedJson = history.map((h) => jsonEncode(h.toMap())).toList();
       await prefs.setStringList(_searchHistoryKey, updatedJson);
@@ -383,7 +413,8 @@ class SearchService {
       }
 
       // Apply seller filter
-      if (filter.sellers.isNotEmpty && !filter.sellers.contains(product.sellerId)) {
+      if (filter.sellers.isNotEmpty &&
+          !filter.sellers.contains(product.sellerId)) {
         return false;
       }
 

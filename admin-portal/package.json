@@ -1,0 +1,76 @@
+{
+  "name": "car-accessories-admin-portal",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@tanstack/react-query": "^5.17.0",
+    "@tanstack/react-query-devtools": "^5.17.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.1",
+    "react-scripts": "5.0.1",
+    "firebase": "^10.7.1",
+    "@mui/material": "^5.15.0",
+    "@mui/icons-material": "^5.15.0",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/x-data-grid": "^6.18.2",
+    "@mui/x-charts": "^6.18.2",
+    "@mui/x-date-pickers": "^6.18.2",
+    "recharts": "^2.8.0",
+    "date-fns": "^2.30.0",
+    "react-hook-form": "^7.48.2",
+    "@hookform/resolvers": "^3.3.2",
+    "yup": "^1.4.0",
+    "react-hot-toast": "^2.4.1",
+    "axios": "^1.6.2",
+    "lodash": "^4.17.21",
+    "react-dropzone": "^14.2.3",
+    "react-beautiful-dnd": "^13.1.1",
+    "framer-motion": "^10.16.16"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "build:prod": "npm run build && echo 'Build completed successfully!'",
+    "serve": "npx serve -s build -l 3001",
+    "analyze": "npm run build && npx bundle-analyzer build/static/js/*.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/lodash": "^4.14.202",
+    "typescript": "^4.9.5"
+  },
+  "resolutions": {
+    "es-abstract": "^1.22.3",
+    "string.prototype.trim": "^1.2.8",
+    "string.prototype.matchall": "^4.0.10"
+  },
+  "overrides": {
+    "es-abstract": "^1.22.3",
+    "string.prototype.trim": "^1.2.8",
+    "string.prototype.matchall": "^4.0.10"
+  },
+  "proxy": "http://localhost:3000"
+}

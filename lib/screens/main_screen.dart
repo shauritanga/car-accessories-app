@@ -1,10 +1,8 @@
 import 'package:car_accessories/providers/cart_provider.dart';
 import 'package:car_accessories/screens/customer/cart_screen.dart';
 import 'package:car_accessories/screens/customer/home_screen.dart';
-import 'package:car_accessories/screens/customer/order_history_screen.dart';
 import 'package:car_accessories/screens/customer/product_list_screen.dart';
 import 'package:car_accessories/screens/customer/profile_screen.dart';
-
 import 'package:car_accessories/screens/seller/inventory_screen.dart';
 import 'package:car_accessories/screens/seller/seller_dashboard_screen.dart';
 import 'package:car_accessories/screens/seller/seller_orders_screen.dart';
@@ -12,6 +10,7 @@ import 'package:car_accessories/screens/seller/seller_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:car_accessories/screens/customer/enhanced_order_history_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   final String userRole;
@@ -33,7 +32,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       const HomeScreen(),
       const ProductListScreen(),
       const CartScreen(),
-      const OrderHistoryScreen(),
+      const EnhancedOrderHistoryScreen(),
       const ProfileScreen(),
     ];
 

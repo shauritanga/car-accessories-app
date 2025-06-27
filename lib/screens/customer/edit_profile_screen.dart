@@ -119,48 +119,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         title: const Text('Edit Profile'),
         elevation: 0,
         actions: [
-          // Temporary test button for debugging
-          IconButton(
-            onPressed: _testFirebaseConnection,
-            icon: const Icon(Icons.bug_report),
-            tooltip: 'Test Firebase Connection',
-          ),
-          // Sample data seeding button
-          IconButton(
-            onPressed: _seedSampleData,
-            icon: const Icon(Icons.data_object),
-            tooltip: 'Seed Sample Data',
-          ),
-          // Test registration button
-          IconButton(
-            onPressed: _testRegistration,
-            icon: const Icon(Icons.person_add),
-            tooltip: 'Test Registration',
-          ),
-          // Check users button
-          IconButton(
-            onPressed: _checkUsers,
-            icon: const Icon(Icons.people),
-            tooltip: 'Check Users in Firebase',
-          ),
-          // Force collection visibility button
-          IconButton(
-            onPressed: _forceCollectionVisibility,
-            icon: const Icon(Icons.visibility),
-            tooltip: 'Make Collections Visible',
-          ),
-          // Deep diagnostic button
-          IconButton(
-            onPressed: _runDeepDiagnostic,
-            icon: const Icon(Icons.medical_services),
-            tooltip: 'Deep Diagnostic',
-          ),
-          // Check database settings button
-          IconButton(
-            onPressed: _checkDatabaseSettings,
-            icon: const Icon(Icons.settings_applications),
-            tooltip: 'Check Database Settings',
-          ),
           TextButton(
             onPressed: _isLoading ? null : _saveProfile,
             child: Text(

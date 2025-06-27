@@ -1,6 +1,8 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import '../models/order_model.dart';
+import '../models/notification_model.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -10,6 +12,7 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Uuid _uuid = const Uuid();
 
   Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -254,9 +257,101 @@ class NotificationService {
     try {
       await _firestore.collection('notifications').doc(notificationId).update({
         'isRead': true,
+        'readAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       print('Error marking notification as read: $e');
     }
+  }
+
+  // Mark all notifications as read for a user
+  Future<void> markAllAsRead(String userId) async {
+    try {
+      final batch = _firestore.batch();
+      final notifications =
+          await _firestore
+              .collection('notifications')
+              .where('userId', isEqualTo: userId)
+              .where('isRead', isEqualTo: false)
+              .get();
+
+      for (final doc in notifications.docs) {
+        batch.update(doc.reference, {
+          'isRead': true,
+          'readAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error marking all notifications as read: $e');
+    }
+  }
+
+  // Delete notification
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      await _firestore.collection('notifications').doc(notificationId).delete();
+    } catch (e) {
+      print('Error deleting notification: $e');
+    }
+  }
+
+  // Get unread count
+  Stream<int> getUnreadCount(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  // Create notification with proper model
+  Future<void> createNotification({
+    required String userId,
+    required String title,
+    required String message,
+    required NotificationType type,
+    NotificationPriority priority = NotificationPriority.normal,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      final notification = NotificationModel(
+        id: _uuid.v4(),
+        userId: userId,
+        title: title,
+        message: message,
+        type: type,
+        priority: priority,
+        data: data,
+        createdAt: DateTime.now(),
+      );
+
+      await _firestore
+          .collection('notifications')
+          .doc(notification.id)
+          .set(notification.toMap());
+
+      // Also show local notification
+      await showNotification(title, message);
+    } catch (e) {
+      print('Error creating notification: $e');
+    }
+  }
+
+  // Get notifications as proper models
+  Stream<List<NotificationModel>> getUserNotificationsAsModels(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => NotificationModel.fromMap(doc.data(), doc.id))
+              .toList();
+        });
   }
 }

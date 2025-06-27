@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../providers/product_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/product_model.dart';
 import '../../models/inventory_model.dart';
 import '../../widgets/custom_button.dart';
+import '../../services/supabase_storage_service.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   const AddProductScreen({super.key});
@@ -20,12 +23,12 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _stockController = TextEditingController();
-  final TextEditingController _imageUrlController = TextEditingController();
-  final TextEditingController _videoUrlController = TextEditingController();
   String _category = 'Seat Covers';
   List<String> _compatibility = [];
-  List<String> _imageUrls = [];
-  List<String> _videoUrls = [];
+  final List<File> _selectedImages = [];
+  final List<String> _uploadedImageUrls = [];
+  bool _isUploadingImages = false;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void dispose() {
@@ -33,41 +36,108 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _descriptionController.dispose();
     _priceController.dispose();
     _stockController.dispose();
-    _imageUrlController.dispose();
-    _videoUrlController.dispose();
     super.dispose();
   }
 
-  void _addImageUrl() {
-    final url = _imageUrlController.text.trim();
-    if (url.isNotEmpty && !_imageUrls.contains(url)) {
-      setState(() {
-        _imageUrls.add(url);
-        _imageUrlController.clear();
-      });
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage(
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (images.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(images.map((xfile) => File(xfile.path)));
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
+      }
     }
   }
 
-  void _addVideoUrl() {
-    final url = _videoUrlController.text.trim();
-    if (url.isNotEmpty && !_videoUrls.contains(url)) {
-      setState(() {
-        _videoUrls.add(url);
-        _videoUrlController.clear();
-      });
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImages.add(File(image.path));
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error taking photo: $e')));
+      }
     }
   }
 
-  void _removeImageUrl(int index) {
+  void _removeImage(int index) {
     setState(() {
-      _imageUrls.removeAt(index);
+      _selectedImages.removeAt(index);
     });
   }
 
-  void _removeVideoUrl(int index) {
+  Future<void> _uploadImages() async {
+    if (_selectedImages.isEmpty) return;
+
     setState(() {
-      _videoUrls.removeAt(index);
+      _isUploadingImages = true;
     });
+
+    try {
+      final List<String> uploadedUrls = [];
+
+      for (final image in _selectedImages) {
+        final url = await SupabaseStorageService.uploadImage(
+          file: image,
+          customPath:
+              'products/${const Uuid().v4()}_${DateTime.now().millisecondsSinceEpoch}',
+        );
+
+        if (url != null) {
+          uploadedUrls.add(url);
+        }
+      }
+
+      setState(() {
+        _uploadedImageUrls.addAll(uploadedUrls);
+        _selectedImages.clear();
+        _isUploadingImages = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${uploadedUrls.length} images uploaded successfully',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isUploadingImages = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error uploading images: $e')));
+      }
+    }
   }
 
   @override
@@ -88,7 +158,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [colorScheme.primary.withOpacity(0.05), colorScheme.background],
+            colors: [
+              colorScheme.primary.withOpacity(0.05),
+              colorScheme.surface,
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -98,13 +171,21 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             padding: const EdgeInsets.all(20.0),
             child: Card(
               elevation: 6,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(28.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Product Details', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary)),
+                    Text(
+                      'Product Details',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
                     const SizedBox(height: 28),
                     TextField(
                       controller: _nameController,
@@ -161,8 +242,14 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         prefixIcon: Icon(Icons.category),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'Seat Covers', child: Text('Seat Covers')),
-                        DropdownMenuItem(value: 'Lighting', child: Text('Lighting')),
+                        DropdownMenuItem(
+                          value: 'Seat Covers',
+                          child: Text('Seat Covers'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Lighting',
+                          child: Text('Lighting'),
+                        ),
                         DropdownMenuItem(value: 'Tools', child: Text('Tools')),
                       ],
                       onChanged: (value) => setState(() => _category = value!),
@@ -174,102 +261,185 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.directions_car),
                       ),
-                      onChanged: (value) => _compatibility = value.split(',').map((e) => e.trim()).toList(),
+                      onChanged:
+                          (value) =>
+                              _compatibility =
+                                  value
+                                      .split(',')
+                                      .map((e) => e.trim())
+                                      .toList(),
                     ),
                     const SizedBox(height: 28),
-                    Text('Product Images (Paste URLs)', style: theme.textTheme.titleMedium?.copyWith(color: colorScheme.primary)),
+                    Text(
+                      'Product Images',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                      ),
+                    ),
                     const SizedBox(height: 10),
+
+                    // Image picker buttons
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: _imageUrlController,
-                            decoration: const InputDecoration(
-                              hintText: 'Paste image URL',
-                              border: OutlineInputBorder(),
+                          child: ElevatedButton.icon(
+                            onPressed: _pickImages,
+                            icon: const Icon(Icons.photo_library),
+                            label: const Text('Pick from Gallery'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primary,
+                              foregroundColor: colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
                             ),
                           ),
                         ),
                         const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: _addImageUrl,
-                          icon: const Icon(Icons.add_link),
-                          label: const Text('Add'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.primary,
-                            foregroundColor: colorScheme.onPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (_imageUrls.isNotEmpty)
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: List.generate(_imageUrls.length, (index) {
-                          final url = _imageUrls[index];
-                          return Chip(
-                            label: Text(url, overflow: TextOverflow.ellipsis),
-                            avatar: CircleAvatar(
-                              backgroundImage: NetworkImage(url),
-                              backgroundColor: Colors.grey[200],
-                            ),
-                            onDeleted: () => _removeImageUrl(index),
-                          );
-                        }),
-                      ),
-                    const SizedBox(height: 28),
-                    Text('Product Videos (Paste URLs, optional)', style: theme.textTheme.titleMedium?.copyWith(color: colorScheme.primary)),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
                         Expanded(
-                          child: TextField(
-                            controller: _videoUrlController,
-                            decoration: const InputDecoration(
-                              hintText: 'Paste video URL',
-                              border: OutlineInputBorder(),
+                          child: ElevatedButton.icon(
+                            onPressed: _pickImageFromCamera,
+                            icon: const Icon(Icons.camera_alt),
+                            label: const Text('Take Photo'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.secondary,
+                              foregroundColor: colorScheme.onSecondary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: _addVideoUrl,
-                          icon: const Icon(Icons.add_link),
-                          label: const Text('Add'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.primary,
-                            foregroundColor: colorScheme.onPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
                           ),
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 10),
-                    if (_videoUrls.isNotEmpty)
+
+                    // Selected images preview
+                    if (_selectedImages.isNotEmpty) ...[
+                      Text(
+                        'Selected Images (${_selectedImages.length})',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length,
+                          itemBuilder: (context, index) {
+                            return Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      _selectedImages[index],
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: GestureDetector(
+                                      onTap: () => _removeImage(index),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: _isUploadingImages ? null : _uploadImages,
+                        icon:
+                            _isUploadingImages
+                                ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Icon(Icons.cloud_upload),
+                        label: Text(
+                          _isUploadingImages ? 'Uploading...' : 'Upload Images',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Uploaded images preview
+                    if (_uploadedImageUrls.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        'Uploaded Images (${_uploadedImageUrls.length})',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: List.generate(_videoUrls.length, (index) {
-                          final url = _videoUrls[index];
-                          return Chip(
-                            label: Text(url, overflow: TextOverflow.ellipsis),
-                            avatar: const CircleAvatar(
-                              child: Icon(Icons.videocam, color: Colors.white, size: 16),
-                              backgroundColor: Colors.blue,
-                            ),
-                            onDeleted: () => _removeVideoUrl(index),
-                          );
-                        }),
+                        children:
+                            _uploadedImageUrls.map((url) {
+                              return Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.green,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.network(
+                                    url,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[300],
+                                        child: const Icon(Icons.error),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
+                            }).toList(),
                       ),
+                    ],
+
                     const SizedBox(height: 36),
                     CustomButton(
                       text: 'Add Product',
@@ -278,9 +448,21 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                           if (user == null) {
                             throw Exception('User not authenticated');
                           }
-                          if (_nameController.text.isEmpty || _priceController.text.isEmpty || _stockController.text.isEmpty || _imageUrls.isEmpty) {
-                            throw Exception('Please fill all required fields and add at least one image URL.');
+
+                          // Validate required fields
+                          if (_nameController.text.isEmpty ||
+                              _priceController.text.isEmpty ||
+                              _stockController.text.isEmpty) {
+                            throw Exception('Please fill all required fields.');
                           }
+
+                          // Check if images are uploaded
+                          if (_uploadedImageUrls.isEmpty) {
+                            throw Exception(
+                              'Please upload at least one product image.',
+                            );
+                          }
+
                           final productId = const Uuid().v4();
                           final product = ProductModel(
                             id: productId,
@@ -291,10 +473,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                             compatibility: _compatibility,
                             stock: int.parse(_stockController.text),
                             sellerId: user.id,
-                            images: _imageUrls,
-                            videos: _videoUrls.isNotEmpty ? _videoUrls : null,
+                            images: _uploadedImageUrls,
+                            videos: null, // No video support for now
                           );
-                          await productNotifier.addProduct(product, []); // [] for images, not used
+
+                          await productNotifier.addProduct(
+                            product,
+                            [],
+                          ); // [] for images, not used since we already have URLs
+
                           // Add initial inventory entry
                           final inventory = InventoryModel(
                             id: const Uuid().v4(),
@@ -304,16 +491,27 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                             lastUpdated: DateTime.now(),
                           );
                           await inventoryNotifier.updateInventory(inventory);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Product and inventory added successfully'),
-                            ),
-                          );
-                          Navigator.pop(context);
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Product and inventory added successfully',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            Navigator.pop(context);
+                          }
                         } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(e.toString())),
-                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(e.toString()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       },
                     ),

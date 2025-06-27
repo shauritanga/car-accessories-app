@@ -29,7 +29,8 @@ class UserProfileService {
       if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
       if (dateOfBirth != null) updateData['dateOfBirth'] = dateOfBirth;
       if (gender != null) updateData['gender'] = gender;
-      if (profileImageUrl != null) updateData['profileImageUrl'] = profileImageUrl;
+      if (profileImageUrl != null)
+        updateData['profileImageUrl'] = profileImageUrl;
 
       await _firestore.collection('users').doc(userId).update(updateData);
     } catch (e) {
@@ -100,13 +101,14 @@ class UserProfileService {
 
   Future<List<UserAddress>> getUserAddresses(String userId) async {
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('addresses')
-          .orderBy('isDefault', descending: true)
-          .orderBy('createdAt', descending: false)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('addresses')
+              .orderBy('isDefault', descending: true)
+              .orderBy('createdAt', descending: false)
+              .get();
 
       return snapshot.docs
           .map((doc) => UserAddress.fromMap(doc.data(), doc.id))
@@ -216,13 +218,14 @@ class UserProfileService {
 
   Future<List<PaymentMethod>> getUserPaymentMethods(String userId) async {
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('payment_methods')
-          .orderBy('isDefault', descending: true)
-          .orderBy('createdAt', descending: false)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('payment_methods')
+              .orderBy('isDefault', descending: true)
+              .orderBy('createdAt', descending: false)
+              .get();
 
       return snapshot.docs
           .map((doc) => PaymentMethod.fromMap(doc.data(), doc.id))
@@ -232,7 +235,10 @@ class UserProfileService {
     }
   }
 
-  Future<void> updatePaymentMethod(String userId, PaymentMethod paymentMethod) async {
+  Future<void> updatePaymentMethod(
+    String userId,
+    PaymentMethod paymentMethod,
+  ) async {
     try {
       // If this is set as default, unset other defaults
       if (paymentMethod.isDefault) {
@@ -250,7 +256,10 @@ class UserProfileService {
     }
   }
 
-  Future<void> deletePaymentMethod(String userId, String paymentMethodId) async {
+  Future<void> deletePaymentMethod(
+    String userId,
+    String paymentMethodId,
+  ) async {
     try {
       await _firestore
           .collection('users')
@@ -282,12 +291,13 @@ class UserProfileService {
   // User Preferences Management
   Future<UserPreferences> getUserPreferences(String userId) async {
     try {
-      final doc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('preferences')
-          .doc('settings')
-          .get();
+      final doc =
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('preferences')
+              .doc('settings')
+              .get();
 
       if (doc.exists) {
         return UserPreferences.fromMap(doc.data()!);
@@ -324,7 +334,10 @@ class UserProfileService {
   }
 
   // Account Security
-  Future<void> changePassword(String currentPassword, String newPassword) async {
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     try {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
@@ -356,7 +369,7 @@ class UserProfileService {
       await user.reauthenticateWithCredential(credential);
 
       // Update email
-      await user.updateEmail(newEmail);
+      await user.verifyBeforeUpdateEmail(newEmail);
 
       // Update in Firestore
       await _firestore.collection('users').doc(user.uid).update({
@@ -399,14 +412,15 @@ class UserProfileService {
 
     // Delete subcollections (addresses, payment methods, preferences)
     final collections = ['addresses', 'payment_methods', 'preferences'];
-    
+
     for (final collection in collections) {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection(collection)
-          .get();
-      
+      final snapshot =
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection(collection)
+              .get();
+
       for (final doc in snapshot.docs) {
         batch.delete(doc.reference);
       }
@@ -427,34 +441,39 @@ class UserProfileService {
       }
 
       // Get addresses
-      final addressesSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('addresses')
-          .get();
-      userData['addresses'] = addressesSnapshot.docs.map((doc) => doc.data()).toList();
+      final addressesSnapshot =
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('addresses')
+              .get();
+      userData['addresses'] =
+          addressesSnapshot.docs.map((doc) => doc.data()).toList();
 
       // Get payment methods (without sensitive data)
-      final paymentSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('payment_methods')
-          .get();
-      userData['payment_methods'] = paymentSnapshot.docs.map((doc) {
-        final data = doc.data();
-        // Remove sensitive payment data
-        data.remove('cardNumber');
-        data.remove('accountNumber');
-        return data;
-      }).toList();
+      final paymentSnapshot =
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('payment_methods')
+              .get();
+      userData['payment_methods'] =
+          paymentSnapshot.docs.map((doc) {
+            final data = doc.data();
+            // Remove sensitive payment data
+            data.remove('cardNumber');
+            data.remove('accountNumber');
+            return data;
+          }).toList();
 
       // Get preferences
-      final prefsDoc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('preferences')
-          .doc('settings')
-          .get();
+      final prefsDoc =
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('preferences')
+              .doc('settings')
+              .get();
       if (prefsDoc.exists) {
         userData['preferences'] = prefsDoc.data();
       }

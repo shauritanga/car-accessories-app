@@ -9,13 +9,11 @@ import 'write_review_screen.dart';
 class ProductReviewsScreen extends ConsumerStatefulWidget {
   final ProductModel product;
 
-  const ProductReviewsScreen({
-    super.key,
-    required this.product,
-  });
+  const ProductReviewsScreen({super.key, required this.product});
 
   @override
-  ConsumerState<ProductReviewsScreen> createState() => _ProductReviewsScreenState();
+  ConsumerState<ProductReviewsScreen> createState() =>
+      _ProductReviewsScreenState();
 }
 
 class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
@@ -28,7 +26,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = ref.watch(currentUserProvider);
-    
+
     final reviewFilter = ReviewFilter(
       productId: widget.product.id,
       starFilter: _starFilter,
@@ -36,8 +34,10 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
       withImagesOnly: _withImagesOnly ? true : null,
       sortBy: _sortBy,
     );
-    
-    final reviewsAsync = ref.watch(filteredProductReviewsStreamProvider(reviewFilter));
+
+    final reviewsAsync = ref.watch(
+      filteredProductReviewsStreamProvider(reviewFilter),
+    );
     final summaryAsync = ref.watch(reviewSummaryProvider(widget.product.id));
 
     return Scaffold(
@@ -60,30 +60,40 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
             loading: () => const LinearProgressIndicator(),
             error: (error, stack) => Container(),
           ),
-          
+
           // Filters
           _buildFilters(theme),
-          
+
           // Reviews list
           Expanded(
             child: reviewsAsync.when(
               data: (reviews) => _buildReviewsList(reviews, theme),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error loading reviews: $error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => ref.refresh(filteredProductReviewsStreamProvider(reviewFilter)),
-                      child: const Text('Retry'),
+              error:
+                  (error, stack) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(height: 16),
+                        Text('Error loading reviews: $error'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed:
+                              () => ref.refresh(
+                                filteredProductReviewsStreamProvider(
+                                  reviewFilter,
+                                ),
+                              ),
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
             ),
           ),
         ],
@@ -96,9 +106,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
       ),
       child: Column(
         children: [
@@ -116,7 +124,9 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                   Row(
                     children: List.generate(5, (index) {
                       return Icon(
-                        index < summary.averageRating ? Icons.star : Icons.star_border,
+                        index < summary.averageRating
+                            ? Icons.star
+                            : Icons.star_border,
                         color: Colors.amber,
                         size: 20,
                       );
@@ -137,7 +147,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                     final star = 5 - index;
                     final count = summary.ratingDistribution[star] ?? 0;
                     final percentage = summary.getPercentageForRating(star);
-                    
+
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Row(
@@ -156,10 +166,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            '$count',
-                            style: theme.textTheme.bodySmall,
-                          ),
+                          Text('$count', style: theme.textTheme.bodySmall),
                         ],
                       ),
                     );
@@ -178,9 +185,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +214,10 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                         ],
                       ),
                       selected: _starFilter == star,
-                      onSelected: (selected) => setState(() => _starFilter = selected ? star : null),
+                      onSelected:
+                          (selected) => setState(
+                            () => _starFilter = selected ? star : null,
+                          ),
                     ),
                   );
                 }),
@@ -223,13 +231,15 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
               FilterChip(
                 label: const Text('Verified'),
                 selected: _verifiedOnly,
-                onSelected: (selected) => setState(() => _verifiedOnly = selected),
+                onSelected:
+                    (selected) => setState(() => _verifiedOnly = selected),
               ),
               const SizedBox(width: 8),
               FilterChip(
                 label: const Text('With Photos'),
                 selected: _withImagesOnly,
-                onSelected: (selected) => setState(() => _withImagesOnly = selected),
+                onSelected:
+                    (selected) => setState(() => _withImagesOnly = selected),
               ),
               const Spacer(),
               DropdownButton<String>(
@@ -237,9 +247,18 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                 items: const [
                   DropdownMenuItem(value: 'newest', child: Text('Newest')),
                   DropdownMenuItem(value: 'oldest', child: Text('Oldest')),
-                  DropdownMenuItem(value: 'highest_rating', child: Text('Highest Rating')),
-                  DropdownMenuItem(value: 'lowest_rating', child: Text('Lowest Rating')),
-                  DropdownMenuItem(value: 'most_helpful', child: Text('Most Helpful')),
+                  DropdownMenuItem(
+                    value: 'highest_rating',
+                    child: Text('Highest Rating'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'lowest_rating',
+                    child: Text('Lowest Rating'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'most_helpful',
+                    child: Text('Most Helpful'),
+                  ),
                 ],
                 onChanged: (value) => setState(() => _sortBy = value!),
               ),
@@ -256,18 +275,11 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.rate_review_outlined,
-              size: 64,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.rate_review_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
               'No reviews yet',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
             Text(
@@ -298,35 +310,39 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
   }
 
   void _navigateToWriteReview(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     final user = ref.read(currentUserProvider);
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Please log in to write a review')),
       );
       return;
     }
 
     // Check if user has already reviewed this product
-    final existingReview = await ref.read(reviewProvider.notifier)
+    final existingReview = await ref
+        .read(reviewProvider.notifier)
         .getUserReviewForProduct(user.id, widget.product.id);
-    
+
     if (existingReview != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('You have already reviewed this product')),
       );
       return;
     }
 
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WriteReviewScreen(product: widget.product),
-      ),
-    );
+    if (mounted) {
+      final result = await navigator.push(
+        MaterialPageRoute(
+          builder: (context) => WriteReviewScreen(product: widget.product),
+        ),
+      );
 
-    if (result == true) {
-      // Refresh the reviews
-      ref.refresh(reviewSummaryProvider(widget.product.id));
+      if (result == true) {
+        // Refresh the reviews
+        ref.refresh(reviewSummaryProvider(widget.product.id));
+      }
     }
   }
 
@@ -339,11 +355,7 @@ class ReviewCard extends StatelessWidget {
   final ReviewModel review;
   final VoidCallback onHelpful;
 
-  const ReviewCard({
-    super.key,
-    required this.review,
-    required this.onHelpful,
-  });
+  const ReviewCard({super.key, required this.review, required this.onHelpful});
 
   @override
   Widget build(BuildContext context) {
@@ -363,7 +375,9 @@ class ReviewCard extends StatelessWidget {
                   radius: 20,
                   backgroundColor: theme.colorScheme.primaryContainer,
                   child: Text(
-                    review.userName.isNotEmpty ? review.userName[0].toUpperCase() : 'A',
+                    review.userName.isNotEmpty
+                        ? review.userName[0].toUpperCase()
+                        : 'A',
                     style: TextStyle(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -386,7 +400,10 @@ class ReviewCard extends StatelessWidget {
                           if (review.isVerifiedPurchase) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -407,7 +424,9 @@ class ReviewCard extends StatelessWidget {
                         children: [
                           ...List.generate(5, (index) {
                             return Icon(
-                              index < review.rating ? Icons.star : Icons.star_border,
+                              index < review.rating
+                                  ? Icons.star
+                                  : Icons.star_border,
                               color: Colors.amber,
                               size: 16,
                             );
@@ -427,7 +446,7 @@ class ReviewCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            
+
             // Title
             if (review.title.isNotEmpty) ...[
               Text(
@@ -438,13 +457,10 @@ class ReviewCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            
+
             // Comment
-            Text(
-              review.comment,
-              style: theme.textTheme.bodyMedium,
-            ),
-            
+            Text(review.comment, style: theme.textTheme.bodyMedium),
+
             // Images
             if (review.images.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -463,12 +479,13 @@ class ReviewCard extends StatelessWidget {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 80,
-                            height: 80,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image_not_supported),
-                          ),
+                          errorBuilder:
+                              (context, error, stackTrace) => Container(
+                                width: 80,
+                                height: 80,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.image_not_supported),
+                              ),
                         ),
                       ),
                     );
@@ -476,7 +493,7 @@ class ReviewCard extends StatelessWidget {
                 ),
               ),
             ],
-            
+
             // Actions
             const SizedBox(height: 12),
             Row(

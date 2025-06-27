@@ -274,4 +274,161 @@ class SampleDataService {
       throw Exception('Failed to seed sample sellers: $e');
     }
   }
+
+  Future<void> createSampleProducts() async {
+    try {
+      final sampleProducts = [
+        {
+          'name': 'Car Phone Mount',
+          'description': 'Universal car phone holder with suction cup mount',
+          'price': 15000.0,
+          'originalPrice': 20000.0,
+          'stock': 50,
+          'category': 'Electronics',
+          'brand': 'CarTech',
+          'model': 'Universal',
+          'sku': 'CT-PM001',
+          'compatibility': ['Toyota', 'Honda', 'Ford', 'BMW'],
+          'sellerId': 'sample_seller_1',
+          'images': [
+            'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop',
+            'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop',
+          ],
+          'rating': 4.5,
+          'averageRating': 4.5,
+          'totalReviews': 25,
+          'isActive': true,
+          'viewCount': 150,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        {
+          'name': 'LED Interior Lights',
+          'description': 'Ambient LED lighting kit for car interior',
+          'price': 25000.0,
+          'originalPrice': 30000.0,
+          'stock': 30,
+          'category': 'Lighting',
+          'brand': 'LightPro',
+          'model': 'Universal',
+          'sku': 'LP-LED001',
+          'compatibility': ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes'],
+          'sellerId': 'sample_seller_1',
+          'images': [
+            'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop',
+            'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop',
+          ],
+          'rating': 4.2,
+          'averageRating': 4.2,
+          'totalReviews': 18,
+          'isActive': true,
+          'viewCount': 120,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        {
+          'name': 'Car Floor Mats',
+          'description': 'Premium all-weather car floor mats',
+          'price': 35000.0,
+          'originalPrice': 40000.0,
+          'stock': 40,
+          'category': 'Interior',
+          'brand': 'MatMaster',
+          'model': 'Universal',
+          'sku': 'MM-FM001',
+          'compatibility': ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes', 'Audi'],
+          'sellerId': 'sample_seller_2',
+          'images': [
+            'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop',
+            'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop',
+          ],
+          'rating': 4.7,
+          'averageRating': 4.7,
+          'totalReviews': 32,
+          'isActive': true,
+          'viewCount': 200,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        {
+          'name': 'Car Air Freshener',
+          'description': 'Long-lasting car air freshener with natural scent',
+          'price': 5000.0,
+          'originalPrice': 7000.0,
+          'stock': 100,
+          'category': 'Interior',
+          'brand': 'FreshAir',
+          'model': 'Universal',
+          'sku': 'FA-AF001',
+          'compatibility': ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes', 'Audi', 'Nissan'],
+          'sellerId': 'sample_seller_2',
+          'images': [
+            'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop',
+            'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop',
+          ],
+          'rating': 4.0,
+          'averageRating': 4.0,
+          'totalReviews': 45,
+          'isActive': true,
+          'viewCount': 180,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        {
+          'name': 'Car Wash Kit',
+          'description': 'Complete car washing and detailing kit',
+          'price': 45000.0,
+          'originalPrice': 55000.0,
+          'stock': 25,
+          'category': 'Maintenance',
+          'brand': 'CleanPro',
+          'model': 'Universal',
+          'sku': 'CP-CW001',
+          'compatibility': ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes', 'Audi', 'Nissan', 'Hyundai'],
+          'sellerId': 'sample_seller_3',
+          'images': [
+            'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop',
+            'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop',
+          ],
+          'rating': 4.8,
+          'averageRating': 4.8,
+          'totalReviews': 28,
+          'isActive': true,
+          'viewCount': 160,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      ];
+
+      for (var productData in sampleProducts) {
+        final docRef = _firestore.collection('products').doc();
+        await docRef.set(productData);
+        print('Created sample product: ${productData['name']} with ID: ${docRef.id}');
+      }
+
+      print('Successfully created ${sampleProducts.length} sample products');
+    } catch (e) {
+      print('Error creating sample products: $e');
+      throw Exception('Failed to create sample products: $e');
+    }
+  }
+
+  Future<void> clearSampleProducts() async {
+    try {
+      final snapshot = await _firestore
+          .collection('products')
+          .where('sellerId', whereIn: ['sample_seller_1', 'sample_seller_2', 'sample_seller_3'])
+          .get();
+
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+        print('Deleted sample product: ${doc.id}');
+      }
+
+      print('Successfully cleared ${snapshot.docs.length} sample products');
+    } catch (e) {
+      print('Error clearing sample products: $e');
+      throw Exception('Failed to clear sample products: $e');
+    }
+  }
 }

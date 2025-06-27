@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/onboarding_utils.dart';
 
 class EnhancedLoginScreen extends ConsumerStatefulWidget {
   const EnhancedLoginScreen({super.key});
@@ -321,6 +322,32 @@ class _EnhancedLoginScreenState extends ConsumerState<EnhancedLoginScreen> {
                         ],
                       ),
                     ),
+
+                    // Reset Onboarding Button (for testing)
+                    if (const bool.fromEnvironment('DEBUG', defaultValue: false))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: TextButton(
+                          onPressed: () async {
+                            await OnboardingUtils.resetOnboarding(ref);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Onboarding reset! Restart the app to see it again.'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text(
+                            'Reset Onboarding (Debug)',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

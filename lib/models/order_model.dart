@@ -16,13 +16,35 @@ class OrderStatusUpdate {
   });
 
   factory OrderStatusUpdate.fromMap(Map<String, dynamic> map) {
-    return OrderStatusUpdate(
-      status: map['status'] ?? '',
-      description: map['description'] ?? '',
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
-      location: map['location'],
-      updatedBy: map['updatedBy'],
-    );
+    try {
+      print(
+        'OrderStatusUpdate.fromMap: Processing status update with keys: ${map.keys.toList()}',
+      );
+      final statusUpdate = OrderStatusUpdate(
+        status: map['status'] ?? '',
+        description: map['description'] ?? '',
+        timestamp:
+            map['timestamp'] != null
+                ? (map['timestamp'] as Timestamp).toDate()
+                : DateTime.now(),
+        location: map['location'],
+        updatedBy: map['updatedBy'],
+      );
+      print(
+        'OrderStatusUpdate.fromMap: Successfully created status update: ${statusUpdate.status}',
+      );
+      return statusUpdate;
+    } catch (e) {
+      print('OrderStatusUpdate.fromMap error: $e for data: $map');
+      // Return a default status update if parsing fails
+      return OrderStatusUpdate(
+        status: map['status'] ?? 'unknown',
+        description: map['description'] ?? 'Status update',
+        timestamp: DateTime.now(),
+        location: map['location'],
+        updatedBy: map['updatedBy'],
+      );
+    }
   }
 
   Map<String, dynamic> toMap() {
@@ -50,12 +72,28 @@ class OrderItem {
   });
 
   factory OrderItem.fromMap(Map<String, dynamic> map) {
-    return OrderItem(
-      productId: map['productId'],
-      price: (map['price'] as num).toDouble(),
-      quantity: map['quantity'],
-      sellerId: map['sellerId'],
-    );
+    try {
+      print(
+        'OrderItem.fromMap: Processing item with keys: ${map.keys.toList()}',
+      );
+      final item = OrderItem(
+        productId: map['productId'] ?? '',
+        price: (map['price'] as num?)?.toDouble() ?? 0.0,
+        quantity: map['quantity'] ?? 0,
+        sellerId: map['sellerId'] ?? '',
+      );
+      print('OrderItem.fromMap: Successfully created item: ${item.productId}');
+      return item;
+    } catch (e) {
+      print('OrderItem.fromMap error: $e for data: $map');
+      // Return a default order item if parsing fails
+      return OrderItem(
+        productId: map['productId'] ?? '',
+        price: 0.0,
+        quantity: 0,
+        sellerId: map['sellerId'] ?? '',
+      );
+    }
   }
 
   Map<String, dynamic> toMap() {
@@ -121,55 +159,81 @@ class OrderModel {
 
   factory OrderModel.fromMap(Map<String, dynamic> data, String docId) {
     try {
-      // Debug print
-      // print('Converting document to OrderModel: $docId');
-      // print('Data: $data');
+      print('OrderModel.fromMap: Starting to parse document: $docId');
+      print('OrderModel.fromMap: Data keys: ${data.keys.toList()}');
 
       // Handle Firestore Timestamp conversion to DateTime
       DateTime createdAt;
+      print('OrderModel.fromMap: Processing createdAt field');
       if (data['createdAt'] is Timestamp) {
         createdAt = (data['createdAt'] as Timestamp).toDate();
+        print(
+          'OrderModel.fromMap: createdAt is Timestamp, converted to: $createdAt',
+        );
       } else if (data['createdAt'] is DateTime) {
         createdAt = data['createdAt'] as DateTime;
+        print('OrderModel.fromMap: createdAt is DateTime: $createdAt');
       } else {
-        // Default to current time if missing or invalid
-        // print('Warning: Invalid createdAt format in order $docId');
+        print(
+          'OrderModel.fromMap: Warning: Invalid createdAt format, using current time',
+        );
         createdAt = DateTime.now();
       }
 
       // Parse items
+      print('OrderModel.fromMap: Processing items field');
       List<OrderItem> items = [];
       if (data['items'] != null) {
+        print(
+          'OrderModel.fromMap: Items field exists, processing ${(data['items'] as List).length} items',
+        );
         items =
-            (data['items'] as List)
-                .map((item) => OrderItem.fromMap(item as Map<String, dynamic>))
-                .toList();
+            (data['items'] as List).map((item) {
+              print('OrderModel.fromMap: Processing item: $item');
+              return OrderItem.fromMap(item as Map<String, dynamic>);
+            }).toList();
+        print(
+          'OrderModel.fromMap: Successfully processed ${items.length} items',
+        );
+      } else {
+        print('OrderModel.fromMap: No items field found');
       }
 
       // Get total from data or calculate from items
+      print('OrderModel.fromMap: Processing total field');
       double total;
       if (data['total'] != null) {
         total =
             (data['total'] is int)
                 ? (data['total'] as int).toDouble()
                 : (data['total'] as num).toDouble();
+        print('OrderModel.fromMap: Total from data: $total');
       } else {
-        // Calculate total from items if not provided
+        print('OrderModel.fromMap: No total field, calculating from items');
         total = items.fold(
           0,
           (accumulator, item) => accumulator + (item.price * item.quantity),
         );
+        print('OrderModel.fromMap: Calculated total: $total');
       }
 
       // Get updatedAt timestamp if available
+      print('OrderModel.fromMap: Processing updatedAt field');
       DateTime? updatedAt;
       if (data['updatedAt'] is Timestamp) {
         updatedAt = (data['updatedAt'] as Timestamp).toDate();
+        print(
+          'OrderModel.fromMap: updatedAt is Timestamp, converted to: $updatedAt',
+        );
       } else if (data['updatedAt'] is DateTime) {
         updatedAt = data['updatedAt'] as DateTime;
+        print('OrderModel.fromMap: updatedAt is DateTime: $updatedAt');
+      } else {
+        print('OrderModel.fromMap: No updatedAt field or invalid format');
       }
 
-      return OrderModel(
+      print('OrderModel.fromMap: Creating OrderModel instance');
+      final orderModel = OrderModel(
         id: data['id'] ?? docId,
         customerId: data['customerId'] ?? '',
         sellerId: data['sellerId'] ?? '',
@@ -204,10 +268,17 @@ class OrderModel {
                 .toList() ??
             [],
       );
-    } catch (e) {
-      // print('Error parsing OrderModel from document $docId: $e');
-      // print('Stack trace: $stack');
-      rethrow; // Re-throw to be handled by the caller
+
+      print(
+        'OrderModel.fromMap: Successfully created OrderModel for document: $docId',
+      );
+      return orderModel;
+    } catch (e, stack) {
+      print(
+        'OrderModel.fromMap: Error parsing OrderModel from document $docId: $e',
+      );
+      print('OrderModel.fromMap: Stack trace: $stack');
+      rethrow;
     }
   }
 

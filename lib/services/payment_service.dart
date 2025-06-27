@@ -1,53 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
-import 'package:dio/dio.dart';
 import '../models/payment_model.dart' as payment_models;
 import '../models/order_model.dart';
 
 class PaymentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Dio _dio = Dio();
-
-  // In production, these should be environment variables
-  static const String _stripePublishableKey =
-      'pk_test_your_publishable_key_here';
-  static const String _stripeSecretKey = 'sk_test_your_secret_key_here';
-
-  Future<void> initializeStripe() async {
-    stripe.Stripe.publishableKey = _stripePublishableKey;
-    await stripe.Stripe.instance.applySettings();
-  }
-
-  // Create payment intent on your backend
-  Future<Map<String, dynamic>> createPaymentIntent({
-    required double amount,
-    required String currency,
-    required String customerId,
-  }) async {
-    try {
-      // In production, this should call your backend API
-      // For demo purposes, we'll simulate the response
-      final response = await _dio.post(
-        'https://api.stripe.com/v1/payment_intents',
-        data: {
-          'amount': (amount * 100).round(), // Stripe uses cents
-          'currency': currency.toLowerCase(),
-          'customer': customerId,
-          'automatic_payment_methods[enabled]': true,
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $_stripeSecretKey',
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        ),
-      );
-
-      return response.data;
-    } catch (e) {
-      throw Exception('Failed to create payment intent: $e');
-    }
-  }
 
   Future<payment_models.PaymentModel> processPayment({
     required OrderModel order,
@@ -111,18 +67,41 @@ class PaymentService {
     String? paymentMethodId,
   ) async {
     try {
-      // Create payment intent (simulated for demo)
-      await createPaymentIntent(
-        amount: payment.amount,
-        currency: 'TZS',
-        customerId: payment.userId,
-      );
+      // Step 1: Validate card details (1 second)
+      await Future.delayed(const Duration(seconds: 1));
 
-      // Simulate card payment processing
+      // Update status to processing
+      await _firestore.collection('payments').doc(payment.id).update({
+        'status': payment_models.PaymentStatus.processing.toString(),
+        'transactionId': 'CARD${DateTime.now().millisecondsSinceEpoch}',
+        'processingSteps': [
+          {
+            'step': 'validation',
+            'message': 'Validating card details',
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        ],
+      });
+
+      // Step 2: Process with bank (2 seconds)
       await Future.delayed(const Duration(seconds: 2));
 
-      // In a real implementation, you would integrate with Stripe here
-      // For now, we'll simulate a successful payment
+      // Update with bank processing step
+      await _firestore.collection('payments').doc(payment.id).update({
+        'processingSteps': FieldValue.arrayUnion([
+          {
+            'step': 'bank_processing',
+            'message': 'Processing payment with bank',
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        ]),
+      });
+
+      // Step 3: Complete payment (1 second)
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Generate realistic transaction reference
+      final transactionRef = 'CARD${DateTime.now().millisecondsSinceEpoch}';
 
       // Update payment status
       final completedPayment = payment_models.PaymentModel(
@@ -132,13 +111,22 @@ class PaymentService {
         amount: payment.amount,
         method: payment.method,
         status: payment_models.PaymentStatus.completed,
+        transactionId: transactionRef,
         createdAt: payment.createdAt,
+        completedAt: DateTime.now(),
       );
 
-      await _firestore
-          .collection('payments')
-          .doc(payment.id)
-          .update(completedPayment.toMap());
+      await _firestore.collection('payments').doc(payment.id).update({
+        ...completedPayment.toMap(),
+        'processingSteps': FieldValue.arrayUnion([
+          {
+            'step': 'completed',
+            'message': 'Payment completed successfully',
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        ]),
+      });
+
       return completedPayment;
     } catch (e) {
       throw Exception('Card payment failed: $e');
@@ -148,8 +136,43 @@ class PaymentService {
   Future<payment_models.PaymentModel> _processMobileMoneyPayment(
     payment_models.PaymentModel payment,
   ) async {
-    // Simulate mobile money processing
+    // Simulate realistic mobile money processing with steps
+
+    // Step 1: Initiate payment request (1 second)
+    await Future.delayed(const Duration(seconds: 1));
+
+    // Update status to processing
+    await _firestore.collection('payments').doc(payment.id).update({
+      'status': payment_models.PaymentStatus.processing.toString(),
+      'transactionId': 'MM${DateTime.now().millisecondsSinceEpoch}',
+      'processingSteps': [
+        {
+          'step': 'initiated',
+          'message': 'Payment request sent to mobile money provider',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      ],
+    });
+
+    // Step 2: Simulate user confirmation on phone (2 seconds)
     await Future.delayed(const Duration(seconds: 2));
+
+    // Update with confirmation step
+    await _firestore.collection('payments').doc(payment.id).update({
+      'processingSteps': FieldValue.arrayUnion([
+        {
+          'step': 'user_confirmation',
+          'message': 'Waiting for user confirmation on mobile device',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      ]),
+    });
+
+    // Step 3: Process payment (1 second)
+    await Future.delayed(const Duration(seconds: 1));
+
+    // Generate realistic transaction reference
+    final transactionRef = 'TXN${DateTime.now().millisecondsSinceEpoch}';
 
     final completedPayment = payment_models.PaymentModel(
       id: payment.id,
@@ -158,13 +181,22 @@ class PaymentService {
       amount: payment.amount,
       method: payment.method,
       status: payment_models.PaymentStatus.completed,
+      transactionId: transactionRef,
       createdAt: payment.createdAt,
+      completedAt: DateTime.now(),
     );
 
-    await _firestore
-        .collection('payments')
-        .doc(payment.id)
-        .update(completedPayment.toMap());
+    await _firestore.collection('payments').doc(payment.id).update({
+      ...completedPayment.toMap(),
+      'processingSteps': FieldValue.arrayUnion([
+        {
+          'step': 'completed',
+          'message': 'Payment completed successfully',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      ]),
+    });
+
     return completedPayment;
   }
 
@@ -225,10 +257,9 @@ class PaymentService {
     return _firestore
         .collection('payment_methods')
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) =>
+        .map((snapshot) {
+          final methods =
               snapshot.docs
                   .map(
                     (doc) => payment_models.PaymentMethodModel.fromMap(
@@ -236,8 +267,13 @@ class PaymentService {
                       doc.id,
                     ),
                   )
-                  .toList(),
-        );
+                  .toList();
+
+          // Sort by createdAt descending on the client side
+          methods.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          return methods;
+        });
   }
 
   Future<void> deletePaymentMethod(String paymentMethodId) async {
@@ -277,16 +313,20 @@ class PaymentService {
     return _firestore
         .collection('payments')
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) =>
+        .map((snapshot) {
+          final payments =
               snapshot.docs
                   .map(
                     (doc) =>
                         payment_models.PaymentModel.fromMap(doc.data(), doc.id),
                   )
-                  .toList(),
-        );
+                  .toList();
+
+          // Sort by createdAt descending on the client side
+          payments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          return payments;
+        });
   }
 }

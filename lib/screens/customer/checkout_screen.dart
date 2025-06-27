@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../models/payment_model.dart';
+import '../../models/enhanced_payment_model.dart' as enhanced;
 import '../../models/order_model.dart';
 import '../../models/address_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/payment_provider.dart';
+import '../../providers/enhanced_payment_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/address_provider.dart';
 import 'payment_methods_screen.dart';
@@ -20,13 +20,17 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
-  PaymentMethodModel? _selectedPaymentMethod;
   AddressModel? _selectedAddress;
+  enhanced.PaymentMethod? _selectedPaymentMethod;
+  bool _hasAttemptedToLoadPaymentMethods = false;
 
   @override
   void initState() {
     super.initState();
-    _loadDefaultAddress();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDefaultAddress();
+      _loadPaymentMethods();
+    });
   }
 
   Future<void> _loadDefaultAddress() async {
@@ -41,12 +45,54 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
+  Future<void> _loadPaymentMethods() async {
+    final user = ref.read(currentUserProvider);
+    print('CheckoutScreen: _loadPaymentMethods called for user: ${user?.id}');
+    if (user != null) {
+      try {
+        await ref
+            .read(enhancedPaymentProvider.notifier)
+            .loadPaymentMethods(user.id);
+        print('CheckoutScreen: Payment methods loaded successfully');
+      } catch (e) {
+        print('CheckoutScreen: Error loading payment methods: $e');
+        // Reset the flag so we can retry
+        setState(() {
+          _hasAttemptedToLoadPaymentMethods = false;
+        });
+      }
+    } else {
+      print('CheckoutScreen: No user available for loading payment methods');
+      // Reset the flag so we can retry when user becomes available
+      setState(() {
+        _hasAttemptedToLoadPaymentMethods = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final cart = ref.watch(cartProvider);
-    final paymentState = ref.watch(paymentProvider);
+    final paymentState = ref.watch(enhancedPaymentProvider);
     final theme = Theme.of(context);
+
+    print(
+      'CheckoutScreen: Build - User: ${user?.id}, Payment methods: ${paymentState.paymentMethods.length}, Loading: ${paymentState.isLoading}, Error: ${paymentState.error}',
+    );
+
+    // Load payment methods if user is available but payment methods haven't been loaded
+    if (user != null &&
+        paymentState.paymentMethods.isEmpty &&
+        !paymentState.isLoading &&
+        paymentState.error == null &&
+        !_hasAttemptedToLoadPaymentMethods) {
+      print('CheckoutScreen: Triggering payment methods load');
+      _hasAttemptedToLoadPaymentMethods = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadPaymentMethods();
+      });
+    }
 
     if (user == null || cart.items.isEmpty) {
       return Scaffold(
@@ -54,10 +100,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         body: const Center(child: Text('No items in cart')),
       );
     }
-
-    final paymentMethodsAsync = ref.watch(
-      paymentMethodsStreamProvider(user.id),
-    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout'), elevation: 0),
@@ -75,7 +117,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             const SizedBox(height: 24),
 
             // Payment Method
-            _buildPaymentMethodSection(paymentMethodsAsync, theme),
+            _buildPaymentMethodSection(paymentState, theme),
             const SizedBox(height: 24),
 
             // Order Total
@@ -293,7 +335,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _buildPaymentMethodSection(
-    AsyncValue<List<PaymentMethodModel>> paymentMethodsAsync,
+    EnhancedPaymentState paymentState,
     ThemeData theme,
   ) {
     return Card(
@@ -312,87 +354,121 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PaymentMethodsScreen(),
-                        ),
-                      ),
+                  onPressed: () => _navigateToPaymentMethods(context),
                   child: const Text('Manage'),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            paymentMethodsAsync.when(
-              data: (paymentMethods) {
-                if (paymentMethods.isEmpty) {
-                  return Column(
+            if (paymentState.isLoading)
+              const CircularProgressIndicator()
+            else if (paymentState.error != null)
+              Column(
+                children: [
+                  Text('Error loading payment methods: ${paymentState.error}'),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _hasAttemptedToLoadPaymentMethods = false;
+                      });
+                      ref.read(enhancedPaymentProvider.notifier).clearError();
+                      _loadPaymentMethods();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              )
+            else if (paymentState.paymentMethods.isEmpty)
+              Column(
+                children: [
+                  const Text('No payment methods available'),
+                  const SizedBox(height: 8),
+                  Row(
                     children: [
-                      const Text('No payment methods available'),
-                      const SizedBox(height: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _navigateToPaymentMethods(context),
+                          child: const Text('Add Payment Method'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed:
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => const PaymentMethodsScreen(),
-                              ),
-                            ),
-                        child: const Text('Add Payment Method'),
+                        onPressed: () {
+                          setState(() {
+                            _hasAttemptedToLoadPaymentMethods = false;
+                          });
+                          _loadPaymentMethods();
+                        },
+                        child: const Text('Refresh'),
                       ),
                     ],
-                  );
-                }
+                  ),
+                ],
+              )
+            else
+              Builder(
+                builder: (context) {
+                  // Auto-select default payment method
+                  _selectedPaymentMethod ??= paymentState.paymentMethods
+                      .firstWhere(
+                        (method) => method.isDefault,
+                        orElse: () => paymentState.paymentMethods.first,
+                      );
 
-                // Auto-select default payment method
-                _selectedPaymentMethod ??= paymentMethods.firstWhere(
-                  (method) => method.isDefault,
-                  orElse: () => paymentMethods.first,
-                );
-
-                return Column(
-                  children: [
-                    ...paymentMethods.map(
-                      (method) => RadioListTile<PaymentMethodModel>(
-                        title: Text(method.displayName),
-                        value: method,
+                  return Column(
+                    children: [
+                      ...paymentState.paymentMethods.map(
+                        (method) => RadioListTile<enhanced.PaymentMethod>(
+                          title: Text(_getPaymentMethodDisplayName(method)),
+                          value: method,
+                          groupValue: _selectedPaymentMethod,
+                          onChanged:
+                              (value) => setState(
+                                () => _selectedPaymentMethod = value,
+                              ),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      // Cash on Delivery option
+                      RadioListTile<enhanced.PaymentMethod>(
+                        title: const Text('Cash on Delivery'),
+                        subtitle: const Text('Pay when you receive your order'),
+                        value: enhanced.PaymentMethod(
+                          id: 'cod',
+                          userId: '',
+                          type: 'cash_on_delivery',
+                          addedAt: DateTime.now(),
+                        ),
                         groupValue: _selectedPaymentMethod,
                         onChanged:
                             (value) =>
                                 setState(() => _selectedPaymentMethod = value),
                         contentPadding: EdgeInsets.zero,
                       ),
-                    ),
-                    // Cash on Delivery option
-                    RadioListTile<PaymentMethodModel>(
-                      title: const Text('Cash on Delivery'),
-                      subtitle: const Text('Pay when you receive your order'),
-                      value: PaymentMethodModel(
-                        id: 'cod',
-                        userId: '',
-                        type: PaymentMethod.cashOnDelivery,
-                        createdAt: DateTime.now(),
-                      ),
-                      groupValue: _selectedPaymentMethod,
-                      onChanged:
-                          (value) =>
-                              setState(() => _selectedPaymentMethod = value),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
-                );
-              },
-              loading: () => const CircularProgressIndicator(),
-              error:
-                  (error, stack) =>
-                      Text('Error loading payment methods: $error'),
-            ),
+                    ],
+                  );
+                },
+              ),
           ],
         ),
       ),
     );
+  }
+
+  String _getPaymentMethodDisplayName(enhanced.PaymentMethod method) {
+    switch (method.type) {
+      case 'card':
+        return '${method.cardBrand ?? 'Card'} •••• ${method.last4 ?? ''}';
+      case 'mobile_money':
+        return 'Mobile Money (${method.accountNumber ?? ''})';
+      case 'bank_transfer':
+        return 'Bank Transfer (${method.accountName ?? ''})';
+      case 'cash_on_delivery':
+        return 'Cash on Delivery';
+      default:
+        return method.type;
+    }
   }
 
   Widget _buildOrderTotal(CartState cart, ThemeData theme) {
@@ -465,6 +541,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (user == null || cart.items.isEmpty) return;
 
     try {
+      print('CheckoutScreen: Creating order for user: ${user.id}');
+      print('CheckoutScreen: Cart items: ${cart.items.length}');
+      
       // Create order
       final order = await ref
           .read(orderProvider.notifier)
@@ -475,17 +554,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             deliveryInstructions: _selectedAddress!.instructions,
           );
 
-      // Process payment
-      await ref
-          .read(paymentProvider.notifier)
-          .processPayment(
-            order: order,
-            paymentMethod: _selectedPaymentMethod!.type,
-            paymentMethodId:
-                _selectedPaymentMethod!.id != 'cod'
-                    ? _selectedPaymentMethod!.id
-                    : null,
-          );
+      print('CheckoutScreen: Order created successfully with ID: ${order.id}');
 
       // Clear cart
       ref.read(cartProvider.notifier).clearCart();
@@ -497,6 +566,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         context.go('/customer/history');
       }
     } catch (e) {
+      print('CheckoutScreen: Error creating order: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -514,6 +584,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Reload default address after returning from address book
     if (result != null) {
       _loadDefaultAddress();
+    }
+  }
+
+  void _navigateToPaymentMethods(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PaymentMethodsScreen()),
+    );
+
+    // Reload payment methods after returning from payment methods screen
+    if (result != null) {
+      _loadPaymentMethods();
     }
   }
 

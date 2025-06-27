@@ -15,9 +15,7 @@ class AddressBookScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final addressesAsync = ref.watch(userAddressesStreamProvider(user.id));
@@ -48,10 +46,7 @@ class AddressBookScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     'No addresses saved',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -81,7 +76,13 @@ class AddressBookScreen extends ConsumerWidget {
                       address: address,
                       onTap: () => _showAddressOptions(context, ref, address),
                       onEdit: () => _navigateToEditAddress(context, address),
-                      onSetDefault: () => _setDefaultAddress(context, ref, user.id, address),
+                      onSetDefault:
+                          () => _setDefaultAddress(
+                            context,
+                            ref,
+                            user.id,
+                            address,
+                          ),
                       onDelete: () => _deleteAddress(context, ref, address),
                     );
                   },
@@ -106,21 +107,23 @@ class AddressBookScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Error loading addresses: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.refresh(userAddressesStreamProvider(user.id)),
-                child: const Text('Retry'),
+        error:
+            (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Error loading addresses: $error'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed:
+                        () => ref.refresh(userAddressesStreamProvider(user.id)),
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
       ),
     );
   }
@@ -128,9 +131,7 @@ class AddressBookScreen extends ConsumerWidget {
   void _navigateToAddAddress(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const AddAddressScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const AddAddressScreen()),
     );
   }
 
@@ -153,24 +154,25 @@ class AddressBookScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => AddressOptionsSheet(
-        address: address,
-        onEdit: () {
-          Navigator.pop(context);
-          _navigateToEditAddress(context, address);
-        },
-        onSetDefault: () {
-          Navigator.pop(context);
-          final user = ref.read(currentUserProvider);
-          if (user != null) {
-            _setDefaultAddress(context, ref, user.id, address);
-          }
-        },
-        onDelete: () {
-          Navigator.pop(context);
-          _deleteAddress(context, ref, address);
-        },
-      ),
+      builder:
+          (context) => AddressOptionsSheet(
+            address: address,
+            onEdit: () {
+              Navigator.pop(context);
+              _navigateToEditAddress(context, address);
+            },
+            onSetDefault: () {
+              Navigator.pop(context);
+              final user = ref.read(currentUserProvider);
+              if (user != null) {
+                _setDefaultAddress(context, ref, user.id, address);
+              }
+            },
+            onDelete: () {
+              Navigator.pop(context);
+              _deleteAddress(context, ref, address);
+            },
+          ),
     );
   }
 
@@ -183,7 +185,9 @@ class AddressBookScreen extends ConsumerWidget {
     if (address.isDefault) return;
 
     try {
-      await ref.read(addressProvider.notifier).setDefaultAddress(userId, address.id);
+      await ref
+          .read(addressProvider.notifier)
+          .setDefaultAddress(userId, address.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Default address updated')),
@@ -191,9 +195,9 @@ class AddressBookScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -205,35 +209,38 @@ class AddressBookScreen extends ConsumerWidget {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Address'),
-        content: Text('Are you sure you want to delete "${address.displayName}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Address'),
+            content: Text(
+              'Are you sure you want to delete "${address.displayName}"?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
       try {
         await ref.read(addressProvider.notifier).deleteAddress(address.id);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Address deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Address deleted')));
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       }
     }
@@ -273,11 +280,7 @@ class AddressCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    _getAddressIcon(),
-                    color: colorScheme.primary,
-                    size: 20,
-                  ),
+                  Icon(_getAddressIcon(), color: colorScheme.primary, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     address.displayName,
@@ -288,7 +291,10 @@ class AddressCard extends StatelessWidget {
                   if (address.isDefault) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(12),
@@ -304,10 +310,7 @@ class AddressCard extends StatelessWidget {
                     ),
                   ],
                   const Spacer(),
-                  Icon(
-                    Icons.more_vert,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.more_vert, color: Colors.grey[600]),
                 ],
               ),
               const SizedBox(height: 8),
@@ -384,10 +387,7 @@ class AddressOptionsSheet extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             address.displayName,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
           ListTile(

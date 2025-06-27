@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/order_model.dart';
-import '../../providers/order_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'enhanced_order_details_screen.dart';
 
@@ -10,21 +10,150 @@ class EnhancedOrderHistoryScreen extends ConsumerStatefulWidget {
   const EnhancedOrderHistoryScreen({super.key});
 
   @override
-  ConsumerState<EnhancedOrderHistoryScreen> createState() => _EnhancedOrderHistoryScreenState();
+  ConsumerState<EnhancedOrderHistoryScreen> createState() =>
+      _EnhancedOrderHistoryScreenState();
 }
 
-class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistoryScreen> {
+class _EnhancedOrderHistoryScreenState
+    extends ConsumerState<EnhancedOrderHistoryScreen> {
+  List<OrderModel> _allOrders = [];
+  List<OrderModel> _filteredOrders = [];
+  bool _isLoading = true;
+  String? _error;
+
+  // Filter and search state
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'all';
   String _selectedTimeRange = 'all';
   String _sortBy = 'newest';
-  List<OrderModel> _filteredOrders = [];
-  List<OrderModel> _allOrders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    print('EnhancedOrderHistory: initState called');
+    _loadOrders();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadOrders() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      setState(() {
+        _error = 'User not authenticated';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    print('EnhancedOrderHistory: Loading orders for user: ${user.id}');
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final snapshot =
+          await firestore
+              .collection('orders')
+              .where('customerId', isEqualTo: user.id)
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      print('EnhancedOrderHistory: Found ${snapshot.docs.length} orders');
+
+      final orders = <OrderModel>[];
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final order = OrderModel.fromMap(data, doc.id);
+          orders.add(order);
+          print(
+            'EnhancedOrderHistory: Successfully loaded order: ${order.shortId}',
+          );
+        } catch (e) {
+          print('EnhancedOrderHistory: Error loading order ${doc.id}: $e');
+        }
+      }
+
+      print(
+        'EnhancedOrderHistory: Successfully loaded ${orders.length} orders',
+      );
+      setState(() {
+        _allOrders = orders;
+        _applyFilters();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('EnhancedOrderHistory: Error loading orders: $e');
+      setState(() {
+        _error = 'Error loading orders: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _applyFilters() {
+    setState(() {
+      _filteredOrders =
+          _allOrders.where((order) {
+            // Search filter
+            final searchTerm = _searchController.text.toLowerCase();
+            if (searchTerm.isNotEmpty) {
+              final matchesSearch =
+                  order.id.toLowerCase().contains(searchTerm) ||
+                  order.status.toLowerCase().contains(searchTerm) ||
+                  order.shortId.toLowerCase().contains(searchTerm);
+              if (!matchesSearch) return false;
+            }
+
+            // Status filter
+            if (_selectedStatus != 'all' && order.status != _selectedStatus) {
+              return false;
+            }
+
+            // Time range filter
+            if (_selectedTimeRange != 'all') {
+              final now = DateTime.now();
+              final orderDate = order.createdAt;
+
+              switch (_selectedTimeRange) {
+                case '30days':
+                  if (now.difference(orderDate).inDays > 30) return false;
+                  break;
+                case '3months':
+                  if (now.difference(orderDate).inDays > 90) return false;
+                  break;
+                case 'year':
+                  if (orderDate.year != now.year) return false;
+                  break;
+              }
+            }
+
+            return true;
+          }).toList();
+
+      // Apply sorting
+      switch (_sortBy) {
+        case 'newest':
+          _filteredOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          break;
+        case 'oldest':
+          _filteredOrders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          break;
+        case 'amount_high':
+          _filteredOrders.sort((a, b) => b.total.compareTo(a.total));
+          break;
+        case 'amount_low':
+          _filteredOrders.sort((a, b) => a.total.compareTo(b.total));
+          break;
+      }
+    });
   }
 
   @override
@@ -38,15 +167,16 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
       );
     }
 
-    final ordersAsync = ref.watch(orderStreamProviderSimple(
-      OrderFilter(userId: user.id, role: 'customer'),
-    ));
+    print(
+      'EnhancedOrderHistory: Building with ${_allOrders.length} orders, filtered: ${_filteredOrders.length}, loading: $_isLoading, error: $_error',
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order History'),
         elevation: 0,
         actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadOrders),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () => _showFilterBottomSheet(context, theme),
@@ -57,41 +187,40 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
         children: [
           // Search and Filter Bar
           _buildSearchAndFilterBar(theme),
-          
+
           // Order Statistics
           _buildOrderStatistics(theme),
-          
+
           // Orders List
           Expanded(
-            child: ordersAsync.when(
-              data: (orders) {
-                _allOrders = orders;
-                _applyFilters();
-                
-                if (_filteredOrders.isEmpty) {
-                  return _buildEmptyState(theme);
-                }
-                
-                return _buildOrdersList(theme);
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error loading orders: $error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => ref.refresh(orderStreamProviderSimple(
-                        OrderFilter(userId: user.id, role: 'customer'),
-                      )),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
+            child: RefreshIndicator(
+              onRefresh: _loadOrders,
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _error != null
+                      ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(height: 16),
+                            Text('Error: $_error'),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadOrders,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                      : _filteredOrders.isEmpty
+                      ? _buildEmptyState(theme)
+                      : _buildOrdersList(theme),
             ),
           ),
         ],
@@ -120,15 +249,16 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
             decoration: InputDecoration(
               hintText: 'Search orders by ID, product, or status...',
               prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        _applyFilters();
-                      },
-                    )
-                  : null,
+              suffixIcon:
+                  _searchController.text.isNotEmpty
+                      ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _applyFilters();
+                        },
+                      )
+                      : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -138,9 +268,9 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
             ),
             onChanged: (value) => _applyFilters(),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Quick Filters
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -156,25 +286,37 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
                   _applyFilters();
                 }),
                 const SizedBox(width: 8),
-                _buildFilterChip('Processing', _selectedStatus == 'processing', () {
-                  setState(() => _selectedStatus = 'processing');
-                  _applyFilters();
-                }),
+                _buildFilterChip(
+                  'Processing',
+                  _selectedStatus == 'processing',
+                  () {
+                    setState(() => _selectedStatus = 'processing');
+                    _applyFilters();
+                  },
+                ),
                 const SizedBox(width: 8),
                 _buildFilterChip('Shipped', _selectedStatus == 'shipped', () {
                   setState(() => _selectedStatus = 'shipped');
                   _applyFilters();
                 }),
                 const SizedBox(width: 8),
-                _buildFilterChip('Delivered', _selectedStatus == 'delivered', () {
-                  setState(() => _selectedStatus = 'delivered');
-                  _applyFilters();
-                }),
+                _buildFilterChip(
+                  'Delivered',
+                  _selectedStatus == 'delivered',
+                  () {
+                    setState(() => _selectedStatus = 'delivered');
+                    _applyFilters();
+                  },
+                ),
                 const SizedBox(width: 8),
-                _buildFilterChip('Cancelled', _selectedStatus == 'cancelled', () {
-                  setState(() => _selectedStatus = 'cancelled');
-                  _applyFilters();
-                }),
+                _buildFilterChip(
+                  'Cancelled',
+                  _selectedStatus == 'cancelled',
+                  () {
+                    setState(() => _selectedStatus = 'cancelled');
+                    _applyFilters();
+                  },
+                ),
               ],
             ),
           ),
@@ -189,7 +331,10 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey[200],
+          color:
+              isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -209,7 +354,8 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
     final totalOrders = _allOrders.length;
     final totalSpent = _allOrders.fold(0.0, (sum, order) => sum + order.total);
     final pendingOrders = _allOrders.where((o) => o.status == 'pending').length;
-    final deliveredOrders = _allOrders.where((o) => o.status == 'delivered').length;
+    final deliveredOrders =
+        _allOrders.where((o) => o.status == 'delivered').length;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -287,10 +433,7 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
           ),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
         ],
@@ -303,20 +446,13 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             _searchController.text.isNotEmpty || _selectedStatus != 'all'
                 ? 'No orders match your filters'
                 : 'No orders found',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
@@ -368,12 +504,14 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EnhancedOrderDetailsScreen(orderId: order.id),
-          ),
-        ),
+        onTap:
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => EnhancedOrderDetailsScreen(orderId: order.id),
+              ),
+            ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -392,16 +530,18 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
                   _buildStatusChip(order.status),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // Order Info
               Row(
                 children: [
                   Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
-                    DateFormat('MMM dd, yyyy • hh:mm a').format(order.createdAt),
+                    DateFormat(
+                      'MMM dd, yyyy • hh:mm a',
+                    ).format(order.createdAt),
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   const Spacer(),
@@ -414,20 +554,24 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // Items Summary
               Text(
                 '${order.itemCount} item${order.itemCount != 1 ? 's' : ''}',
                 style: TextStyle(color: Colors.grey[600]),
               ),
-              
+
               if (order.trackingNumber != null) ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.local_shipping, size: 14, color: Colors.grey[600]),
+                    Icon(
+                      Icons.local_shipping,
+                      size: 14,
+                      color: Colors.grey[600],
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Tracking: ${order.trackingNumber}',
@@ -436,8 +580,9 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
                   ],
                 ),
               ],
-              
-              if (order.estimatedDeliveryDate != null && !order.isDelivered) ...[
+
+              if (order.estimatedDeliveryDate != null &&
+                  !order.isDelivered) ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -511,116 +656,154 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Filter Orders',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Time Range Filter
-              Text(
-                'Time Range',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: [
-                  _buildFilterOption('All Time', _selectedTimeRange == 'all', () {
-                    setModalState(() => _selectedTimeRange = 'all');
-                  }),
-                  _buildFilterOption('Last 30 Days', _selectedTimeRange == '30days', () {
-                    setModalState(() => _selectedTimeRange = '30days');
-                  }),
-                  _buildFilterOption('Last 3 Months', _selectedTimeRange == '3months', () {
-                    setModalState(() => _selectedTimeRange = '3months');
-                  }),
-                  _buildFilterOption('This Year', _selectedTimeRange == 'year', () {
-                    setModalState(() => _selectedTimeRange = 'year');
-                  }),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Sort Options
-              Text(
-                'Sort By',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: [
-                  _buildFilterOption('Newest First', _sortBy == 'newest', () {
-                    setModalState(() => _sortBy = 'newest');
-                  }),
-                  _buildFilterOption('Oldest First', _sortBy == 'oldest', () {
-                    setModalState(() => _sortBy = 'oldest');
-                  }),
-                  _buildFilterOption('Highest Amount', _sortBy == 'amount_high', () {
-                    setModalState(() => _sortBy = 'amount_high');
-                  }),
-                  _buildFilterOption('Lowest Amount', _sortBy == 'amount_low', () {
-                    setModalState(() => _sortBy = 'amount_low');
-                  }),
-                ],
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setModalState(() {
-                          _selectedTimeRange = 'all';
-                          _sortBy = 'newest';
-                        });
-                        setState(() {
-                          _selectedTimeRange = 'all';
-                          _sortBy = 'newest';
-                        });
-                        _applyFilters();
-                      },
-                      child: const Text('Reset'),
-                    ),
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setModalState) => Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Filter Orders',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Time Range Filter
+                      Text(
+                        'Time Range',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          _buildFilterOption(
+                            'All Time',
+                            _selectedTimeRange == 'all',
+                            () {
+                              setModalState(() => _selectedTimeRange = 'all');
+                            },
+                          ),
+                          _buildFilterOption(
+                            'Last 30 Days',
+                            _selectedTimeRange == '30days',
+                            () {
+                              setModalState(
+                                () => _selectedTimeRange = '30days',
+                              );
+                            },
+                          ),
+                          _buildFilterOption(
+                            'Last 3 Months',
+                            _selectedTimeRange == '3months',
+                            () {
+                              setModalState(
+                                () => _selectedTimeRange = '3months',
+                              );
+                            },
+                          ),
+                          _buildFilterOption(
+                            'This Year',
+                            _selectedTimeRange == 'year',
+                            () {
+                              setModalState(() => _selectedTimeRange = 'year');
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sort Options
+                      Text(
+                        'Sort By',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          _buildFilterOption(
+                            'Newest First',
+                            _sortBy == 'newest',
+                            () {
+                              setModalState(() => _sortBy = 'newest');
+                            },
+                          ),
+                          _buildFilterOption(
+                            'Oldest First',
+                            _sortBy == 'oldest',
+                            () {
+                              setModalState(() => _sortBy = 'oldest');
+                            },
+                          ),
+                          _buildFilterOption(
+                            'Highest Amount',
+                            _sortBy == 'amount_high',
+                            () {
+                              setModalState(() => _sortBy = 'amount_high');
+                            },
+                          ),
+                          _buildFilterOption(
+                            'Lowest Amount',
+                            _sortBy == 'amount_low',
+                            () {
+                              setModalState(() => _sortBy = 'amount_low');
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                setModalState(() {
+                                  _selectedTimeRange = 'all';
+                                  _sortBy = 'newest';
+                                });
+                                setState(() {
+                                  _selectedTimeRange = 'all';
+                                  _sortBy = 'newest';
+                                });
+                                _applyFilters();
+                              },
+                              child: const Text('Reset'),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedTimeRange = _selectedTimeRange;
+                                  _sortBy = _sortBy;
+                                });
+                                _applyFilters();
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Apply'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedTimeRange = _selectedTimeRange;
-                          _sortBy = _sortBy;
-                        });
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Apply'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
           ),
-        ),
-      ),
     );
   }
 
@@ -630,10 +813,16 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey[200],
+          color:
+              isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey[300]!,
+            color:
+                isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey[300]!,
           ),
         ),
         child: Text(
@@ -645,61 +834,5 @@ class _EnhancedOrderHistoryScreenState extends ConsumerState<EnhancedOrderHistor
         ),
       ),
     );
-  }
-
-  void _applyFilters() {
-    setState(() {
-      _filteredOrders = _allOrders.where((order) {
-        // Search filter
-        final searchTerm = _searchController.text.toLowerCase();
-        if (searchTerm.isNotEmpty) {
-          final matchesSearch = order.id.toLowerCase().contains(searchTerm) ||
-              order.status.toLowerCase().contains(searchTerm) ||
-              order.shortId.toLowerCase().contains(searchTerm);
-          if (!matchesSearch) return false;
-        }
-
-        // Status filter
-        if (_selectedStatus != 'all' && order.status != _selectedStatus) {
-          return false;
-        }
-
-        // Time range filter
-        if (_selectedTimeRange != 'all') {
-          final now = DateTime.now();
-          final orderDate = order.createdAt;
-          
-          switch (_selectedTimeRange) {
-            case '30days':
-              if (now.difference(orderDate).inDays > 30) return false;
-              break;
-            case '3months':
-              if (now.difference(orderDate).inDays > 90) return false;
-              break;
-            case 'year':
-              if (orderDate.year != now.year) return false;
-              break;
-          }
-        }
-
-        return true;
-      }).toList();
-
-      // Apply sorting
-      switch (_sortBy) {
-        case 'newest':
-          _filteredOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          break;
-        case 'oldest':
-          _filteredOrders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-          break;
-        case 'amount_high':
-          _filteredOrders.sort((a, b) => b.total.compareTo(a.total));
-          break;
-        case 'amount_low':
-          _filteredOrders.sort((a, b) => a.total.compareTo(b.total));
-          break;
-      }
-    });
   }
 }

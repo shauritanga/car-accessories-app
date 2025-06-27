@@ -23,12 +23,13 @@ class SearchSuggestion {
     'resultCount': resultCount,
   };
 
-  factory SearchSuggestion.fromJson(Map<String, dynamic> json) => SearchSuggestion(
-    text: json['text'],
-    type: json['type'],
-    imageUrl: json['imageUrl'],
-    resultCount: json['resultCount'],
-  );
+  factory SearchSuggestion.fromJson(Map<String, dynamic> json) =>
+      SearchSuggestion(
+        text: json['text'],
+        type: json['type'],
+        imageUrl: json['imageUrl'],
+        resultCount: json['resultCount'],
+      );
 }
 
 class SearchHistory {
@@ -84,19 +85,22 @@ class ComprehensiveSearchService {
       // Return recent searches and trending
       final history = await getSearchHistory();
       suggestions.addAll(
-        history.take(5).map((h) => SearchSuggestion(
-          text: h.query,
-          type: 'recent',
-          resultCount: h.resultCount,
-        )),
+        history
+            .take(5)
+            .map(
+              (h) => SearchSuggestion(
+                text: h.query,
+                type: 'recent',
+                resultCount: h.resultCount,
+              ),
+            ),
       );
 
       final trending = await getTrendingSearches();
       suggestions.addAll(
-        trending.take(5).map((t) => SearchSuggestion(
-          text: t,
-          type: 'trending',
-        )),
+        trending
+            .take(5)
+            .map((t) => SearchSuggestion(text: t, type: 'trending')),
       );
 
       return suggestions;
@@ -106,53 +110,55 @@ class ComprehensiveSearchService {
 
     try {
       // Search in products
-      final productQuery = await _firestore
-          .collection('products')
-          .where('searchKeywords', arrayContains: lowerQuery)
-          .limit(5)
-          .get();
+      final productQuery =
+          await _firestore
+              .collection('products')
+              .where('searchKeywords', arrayContains: lowerQuery)
+              .limit(5)
+              .get();
 
       suggestions.addAll(
         productQuery.docs.map((doc) {
           final data = doc.data();
+          final images = data['images'] as List?;
           return SearchSuggestion(
-            text: data['name'] ?? '',
+            text: data['name']?.toString() ?? '',
             type: 'product',
-            imageUrl: (data['images'] as List?)?.isNotEmpty == true 
-                ? data['images'][0] 
-                : null,
+            imageUrl:
+                images != null && images.isNotEmpty
+                    ? images[0]?.toString()
+                    : null,
           );
         }),
       );
 
       // Search in categories
       final categories = await getCategories();
-      final matchingCategories = categories
-          .where((cat) => cat.toLowerCase().contains(lowerQuery))
-          .take(3)
-          .toList();
+      final matchingCategories =
+          categories
+              .where((cat) => cat.toLowerCase().contains(lowerQuery))
+              .take(3)
+              .toList();
 
       suggestions.addAll(
-        matchingCategories.map((category) => SearchSuggestion(
-          text: category,
-          type: 'category',
-        )),
+        matchingCategories.map(
+          (category) => SearchSuggestion(text: category, type: 'category'),
+        ),
       );
 
       // Search in brands
       final brands = await getBrands();
-      final matchingBrands = brands
-          .where((brand) => brand.toLowerCase().contains(lowerQuery))
-          .take(3)
-          .toList();
+      final matchingBrands =
+          brands
+              .where((brand) => brand.toLowerCase().contains(lowerQuery))
+              .take(3)
+              .toList();
 
       suggestions.addAll(
-        matchingBrands.map((brand) => SearchSuggestion(
-          text: brand,
-          type: 'brand',
-        )),
+        matchingBrands.map(
+          (brand) => SearchSuggestion(text: brand, type: 'brand'),
+        ),
       );
-
     } catch (e) {
       print('Error getting search suggestions: $e');
     }
@@ -170,7 +176,8 @@ class ComprehensiveSearchService {
     List<String>? brands,
     List<String>? compatibility,
     bool? inStockOnly,
-    String? sortBy, // 'price_asc', 'price_desc', 'rating', 'newest', 'popularity'
+    String?
+    sortBy, // 'price_asc', 'price_desc', 'rating', 'newest', 'popularity'
     int limit = 50,
   }) async {
     try {
@@ -182,15 +189,24 @@ class ComprehensiveSearchService {
       }
 
       if (minPrice != null) {
-        firestoreQuery = firestoreQuery.where('price', isGreaterThanOrEqualTo: minPrice);
+        firestoreQuery = firestoreQuery.where(
+          'price',
+          isGreaterThanOrEqualTo: minPrice,
+        );
       }
 
       if (maxPrice != null) {
-        firestoreQuery = firestoreQuery.where('price', isLessThanOrEqualTo: maxPrice);
+        firestoreQuery = firestoreQuery.where(
+          'price',
+          isLessThanOrEqualTo: maxPrice,
+        );
       }
 
       if (minRating != null) {
-        firestoreQuery = firestoreQuery.where('averageRating', isGreaterThanOrEqualTo: minRating);
+        firestoreQuery = firestoreQuery.where(
+          'averageRating',
+          isGreaterThanOrEqualTo: minRating,
+        );
       }
 
       if (inStockOnly == true) {
@@ -198,7 +214,10 @@ class ComprehensiveSearchService {
       }
 
       if (compatibility != null && compatibility.isNotEmpty) {
-        firestoreQuery = firestoreQuery.where('compatibility', arrayContainsAny: compatibility);
+        firestoreQuery = firestoreQuery.where(
+          'compatibility',
+          arrayContainsAny: compatibility,
+        );
       }
 
       // Apply sorting
@@ -210,32 +229,57 @@ class ComprehensiveSearchService {
           firestoreQuery = firestoreQuery.orderBy('price', descending: true);
           break;
         case 'rating':
-          firestoreQuery = firestoreQuery.orderBy('averageRating', descending: true);
+          firestoreQuery = firestoreQuery.orderBy(
+            'averageRating',
+            descending: true,
+          );
           break;
         case 'newest':
-          firestoreQuery = firestoreQuery.orderBy('createdAt', descending: true);
+          firestoreQuery = firestoreQuery.orderBy(
+            'createdAt',
+            descending: true,
+          );
           break;
         case 'popularity':
-          firestoreQuery = firestoreQuery.orderBy('totalReviews', descending: true);
+          firestoreQuery = firestoreQuery.orderBy(
+            'totalReviews',
+            descending: true,
+          );
           break;
         default:
           // Default sorting by relevance (or creation date)
-          firestoreQuery = firestoreQuery.orderBy('createdAt', descending: true);
+          firestoreQuery = firestoreQuery.orderBy(
+            'createdAt',
+            descending: true,
+          );
       }
 
       final snapshot = await firestoreQuery.limit(limit).get();
-      
-      List<ProductModel> products = snapshot.docs
-          .map((doc) => ProductModel.fromMap(doc.data() as Map<String, dynamic>))
-          .toList();
+
+      List<ProductModel> products =
+          snapshot.docs
+              .map(
+                (doc) =>
+                    ProductModel.fromMap(doc.data() as Map<String, dynamic>),
+              )
+              .toList();
 
       // Apply text search filter (since Firestore doesn't have full-text search)
       if (query != null && query.isNotEmpty) {
-        final searchTerms = query.toLowerCase().split(' ');
-        products = products.where((product) {
-          final productText = '${product.name} ${product.description}'.toLowerCase();
-          return searchTerms.any((term) => productText.contains(term));
-        }).toList();
+        final searchTerms =
+            query
+                .toLowerCase()
+                .split(' ')
+                .where((term) => term.isNotEmpty)
+                .toList();
+        if (searchTerms.isNotEmpty) {
+          products =
+              products.where((product) {
+                final productText =
+                    '${product.name} ${product.description}'.toLowerCase();
+                return searchTerms.any((term) => productText.contains(term));
+              }).toList();
+        }
       }
 
       // Apply brand filter (if not done in Firestore)
@@ -260,17 +304,24 @@ class ComprehensiveSearchService {
     try {
       final snapshot = await _firestore.collection('products').get();
       final categories = <String>{};
-      
+
       for (final doc in snapshot.docs) {
         final data = doc.data();
         if (data['category'] != null) {
           categories.add(data['category']);
         }
       }
-      
+
       return categories.toList()..sort();
     } catch (e) {
-      return ['Interior', 'Exterior', 'Electronics', 'Performance', 'Safety', 'Lighting'];
+      return [
+        'Interior',
+        'Exterior',
+        'Electronics',
+        'Performance',
+        'Safety',
+        'Lighting',
+      ];
     }
   }
 
@@ -279,17 +330,26 @@ class ComprehensiveSearchService {
     try {
       final snapshot = await _firestore.collection('products').get();
       final brands = <String>{};
-      
+
       for (final doc in snapshot.docs) {
         final data = doc.data();
         if (data['brand'] != null) {
           brands.add(data['brand']);
         }
       }
-      
+
       return brands.toList()..sort();
     } catch (e) {
-      return ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes', 'Audi', 'Nissan', 'Mazda'];
+      return [
+        'Toyota',
+        'Honda',
+        'Ford',
+        'BMW',
+        'Mercedes',
+        'Audi',
+        'Nissan',
+        'Mazda',
+      ];
     }
   }
 
@@ -297,13 +357,13 @@ class ComprehensiveSearchService {
   Future<Map<String, double>> getPriceRange([String? category]) async {
     try {
       Query query = _firestore.collection('products');
-      
+
       if (category != null) {
         query = query.where('category', isEqualTo: category);
       }
 
       final snapshot = await query.get();
-      
+
       if (snapshot.docs.isEmpty) {
         return {'min': 0.0, 'max': 1000000.0};
       }
@@ -332,20 +392,24 @@ class ComprehensiveSearchService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_searchHistoryKey) ?? [];
-      
-      final history = historyJson
-          .map((json) => SearchHistory.fromJson(jsonDecode(json)))
-          .toList();
+
+      final history =
+          historyJson
+              .map((json) => SearchHistory.fromJson(jsonDecode(json)))
+              .toList();
 
       // Remove existing entry if it exists
       history.removeWhere((h) => h.query.toLowerCase() == query.toLowerCase());
 
       // Add new entry at the beginning
-      history.insert(0, SearchHistory(
-        query: query,
-        timestamp: DateTime.now(),
-        resultCount: resultCount,
-      ));
+      history.insert(
+        0,
+        SearchHistory(
+          query: query,
+          timestamp: DateTime.now(),
+          resultCount: resultCount,
+        ),
+      );
 
       // Keep only the most recent entries
       if (history.length > _maxHistoryItems) {
@@ -367,7 +431,7 @@ class ComprehensiveSearchService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_searchHistoryKey) ?? [];
-      
+
       return historyJson
           .map((json) => SearchHistory.fromJson(jsonDecode(json)))
           .toList();
@@ -389,11 +453,12 @@ class ComprehensiveSearchService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_searchHistoryKey) ?? [];
-      
-      final history = historyJson
-          .map((json) => SearchHistory.fromJson(jsonDecode(json)))
-          .where((h) => h.query.toLowerCase() != query.toLowerCase())
-          .toList();
+
+      final history =
+          historyJson
+              .map((json) => SearchHistory.fromJson(jsonDecode(json)))
+              .where((h) => h.query.toLowerCase() != query.toLowerCase())
+              .toList();
 
       final updatedJson = history.map((h) => jsonEncode(h.toJson())).toList();
       await prefs.setStringList(_searchHistoryKey, updatedJson);
@@ -406,13 +471,14 @@ class ComprehensiveSearchService {
   Future<List<String>> getTrendingSearches() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getStringList(_trendingSearchesKey) ?? [
-        'brake pads',
-        'LED headlights',
-        'car mats',
-        'air freshener',
-        'phone holder',
-      ];
+      return prefs.getStringList(_trendingSearchesKey) ??
+          [
+            'brake pads',
+            'LED headlights',
+            'car mats',
+            'air freshener',
+            'phone holder',
+          ];
     } catch (e) {
       return [];
     }
@@ -422,16 +488,16 @@ class ComprehensiveSearchService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final trending = prefs.getStringList(_trendingSearchesKey) ?? [];
-      
+
       // Simple trending algorithm - move to front if exists, add if new
       trending.remove(query.toLowerCase());
       trending.insert(0, query.toLowerCase());
-      
+
       // Keep only top 10 trending
       if (trending.length > 10) {
         trending.removeRange(10, trending.length);
       }
-      
+
       await prefs.setStringList(_trendingSearchesKey, trending);
     } catch (e) {
       print('Failed to update trending searches: $e');

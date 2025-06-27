@@ -120,7 +120,7 @@ class CartScreen extends ConsumerWidget {
                       color: colorScheme.surface,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, -5),
                         ),
@@ -140,12 +140,12 @@ class CartScreen extends ConsumerWidget {
                             vertical: 12,
                           ),
                           decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer.withOpacity(
-                              0.3,
+                            color: colorScheme.primaryContainer.withValues(
+                              alpha: 0.3,
                             ),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: colorScheme.primary.withOpacity(0.2),
+                              color: colorScheme.primary.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Row(

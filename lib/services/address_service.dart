@@ -12,7 +12,10 @@ class AddressService {
         await _removeDefaultFromOtherAddresses(address.userId);
       }
 
-      await _firestore.collection('addresses').doc(address.id).set(address.toMap());
+      await _firestore
+          .collection('addresses')
+          .doc(address.id)
+          .set(address.toMap());
     } catch (e) {
       throw Exception('Failed to add address: $e');
     }
@@ -23,12 +26,16 @@ class AddressService {
     try {
       // If this is set as default, remove default from other addresses
       if (address.isDefault) {
-        await _removeDefaultFromOtherAddresses(address.userId, excludeId: address.id);
+        await _removeDefaultFromOtherAddresses(
+          address.userId,
+          excludeId: address.id,
+        );
       }
 
-      await _firestore.collection('addresses').doc(address.id).update(
-        address.copyWith(updatedAt: DateTime.now()).toMap(),
-      );
+      await _firestore
+          .collection('addresses')
+          .doc(address.id)
+          .update(address.copyWith(updatedAt: DateTime.now()).toMap());
     } catch (e) {
       throw Exception('Failed to update address: $e');
     }
@@ -51,20 +58,24 @@ class AddressService {
         .orderBy('isDefault', descending: true)
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AddressModel.fromMap(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => AddressModel.fromMap(doc.data(), doc.id))
+                  .toList(),
+        );
   }
 
   // Get default address for a user
   Future<AddressModel?> getDefaultAddress(String userId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('addresses')
-          .where('userId', isEqualTo: userId)
-          .where('isDefault', isEqualTo: true)
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection('addresses')
+              .where('userId', isEqualTo: userId)
+              .where('isDefault', isEqualTo: true)
+              .limit(1)
+              .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final doc = querySnapshot.docs.first;
@@ -85,13 +96,10 @@ class AddressService {
       await _removeDefaultFromOtherAddresses(userId);
 
       // Set new default
-      batch.update(
-        _firestore.collection('addresses').doc(addressId),
-        {
-          'isDefault': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-      );
+      batch.update(_firestore.collection('addresses').doc(addressId), {
+        'isDefault': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       await batch.commit();
     } catch (e) {
@@ -113,26 +121,33 @@ class AddressService {
   }
 
   // Search addresses by query
-  Future<List<AddressModel>> searchAddresses(String userId, String query) async {
+  Future<List<AddressModel>> searchAddresses(
+    String userId,
+    String query,
+  ) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('addresses')
-          .where('userId', isEqualTo: userId)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection('addresses')
+              .where('userId', isEqualTo: userId)
+              .get();
 
-      final addresses = querySnapshot.docs
-          .map((doc) => AddressModel.fromMap(doc.data(), doc.id))
-          .toList();
+      final addresses =
+          querySnapshot.docs
+              .map((doc) => AddressModel.fromMap(doc.data(), doc.id))
+              .toList();
 
       // Filter addresses based on search query
-      final filteredAddresses = addresses.where((address) {
-        final searchText = query.toLowerCase();
-        return address.fullName.toLowerCase().contains(searchText) ||
-            address.street.toLowerCase().contains(searchText) ||
-            address.city.toLowerCase().contains(searchText) ||
-            address.state.toLowerCase().contains(searchText) ||
-            address.displayName.toLowerCase().contains(searchText);
-      }).toList();
+      final filteredAddresses =
+          addresses.where((address) {
+            final searchText = query.toLowerCase();
+            return address.fullName.toLowerCase().contains(searchText) ||
+                address.street.toLowerCase().contains(searchText) ||
+                address.city.toLowerCase().contains(searchText) ||
+                address.state.toLowerCase().contains(searchText) ||
+                (address.displayName.toLowerCase().contains(searchText) ??
+                    false);
+          }).toList();
 
       return filteredAddresses;
     } catch (e) {
@@ -141,16 +156,22 @@ class AddressService {
   }
 
   // Get addresses by type
-  Stream<List<AddressModel>> getAddressesByType(String userId, AddressType type) {
+  Stream<List<AddressModel>> getAddressesByType(
+    String userId,
+    AddressType type,
+  ) {
     return _firestore
         .collection('addresses')
         .where('userId', isEqualTo: userId)
         .where('type', isEqualTo: type.toString())
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AddressModel.fromMap(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => AddressModel.fromMap(doc.data(), doc.id))
+                  .toList(),
+        );
   }
 
   // Validate address completeness
@@ -178,18 +199,24 @@ class AddressService {
     if (partialAddress.isEmpty) return suggestions;
 
     return suggestions
-        .where((suggestion) =>
-            suggestion.toLowerCase().contains(partialAddress.toLowerCase()))
+        .where(
+          (suggestion) =>
+              suggestion.toLowerCase().contains(partialAddress.toLowerCase()),
+        )
         .toList();
   }
 
   // Private helper method to remove default from other addresses
-  Future<void> _removeDefaultFromOtherAddresses(String userId, {String? excludeId}) async {
-    final querySnapshot = await _firestore
-        .collection('addresses')
-        .where('userId', isEqualTo: userId)
-        .where('isDefault', isEqualTo: true)
-        .get();
+  Future<void> _removeDefaultFromOtherAddresses(
+    String userId, {
+    String? excludeId,
+  }) async {
+    final querySnapshot =
+        await _firestore
+            .collection('addresses')
+            .where('userId', isEqualTo: userId)
+            .where('isDefault', isEqualTo: true)
+            .get();
 
     final batch = _firestore.batch();
     for (final doc in querySnapshot.docs) {

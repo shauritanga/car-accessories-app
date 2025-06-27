@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/payment_model.dart';
-
 import '../../models/shipping_model.dart';
-
 import '../../models/user_model.dart';
+import '../../models/coupon_model.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../services/shipping_service.dart';
 import '../../services/coupon_service.dart';
-
-// import 'guest_checkout_screen.dart';
-// import 'coupon_selection_screen.dart';
+import '../../widgets/payment_progress_dialog.dart';
+import 'guest_checkout_screen.dart';
+import 'coupon_selection_screen.dart';
 
 class EnhancedCheckoutScreen extends ConsumerStatefulWidget {
   const EnhancedCheckoutScreen({super.key});
@@ -913,17 +913,32 @@ class _EnhancedCheckoutScreenState
   }
 
   void _navigateToGuestCheckout() {
-    // For now, just show a message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Guest checkout feature coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const GuestCheckoutScreen()),
     );
   }
 
-  void _navigateToCouponSelection() {
-    // For now, just show a message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coupon selection feature coming soon!')),
+  void _navigateToCouponSelection() async {
+    final selectedCoupon = await Navigator.push<Coupon>(
+      context,
+      MaterialPageRoute(builder: (context) => const CouponSelectionScreen()),
     );
+
+    if (selectedCoupon != null && mounted) {
+      setState(() {
+        _appliedCouponCode = selectedCoupon.code;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Coupon "${selectedCoupon.code}" applied successfully!',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   PaymentMethod _getPaymentMethodType(String value) {
@@ -981,6 +996,28 @@ class _EnhancedCheckoutScreenState
 
       // Process payment if not COD
       if (_selectedPaymentMethod?.type != PaymentMethod.cashOnDelivery) {
+        // Show payment progress dialog
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (context) => PaymentProgressDialog(
+                  paymentId: order.id,
+                  paymentMethod: _selectedPaymentMethod!.type,
+                  amount: cart.total,
+                  onSuccess: () {
+                    // Payment completed successfully
+                  },
+                  onError: () {
+                    // Payment failed
+                    throw Exception('Payment failed');
+                  },
+                ),
+          );
+        }
+
+        // Process payment in background
         await ref
             .read(paymentProvider.notifier)
             .processPayment(
