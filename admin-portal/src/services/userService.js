@@ -27,6 +27,11 @@ export const getUsers = async (filters = {}) => {
       q = query(q, where('isActive', '==', isActive));
     }
     
+    // Apply approval filter for sellers
+    if (filters.approval) {
+      q = query(q, where('approvalStatus', '==', filters.approval));
+    }
+    
     // Add ordering
     q = query(q, orderBy('createdAt', 'desc'));
     
@@ -163,6 +168,22 @@ export const updateUserStatus = async (userId, isActive) => {
   } catch (error) {
     console.error('Error updating user status:', error);
     throw new Error('Failed to update user status');
+  }
+};
+
+// Update seller approval status
+export const updateSellerApproval = async (userId, approvalStatus) => {
+  try {
+    const docRef = doc(db, 'users', userId);
+    await updateDoc(docRef, {
+      approvalStatus,
+      updatedAt: new Date(),
+    });
+    
+    return userId;
+  } catch (error) {
+    console.error('Error updating seller approval status:', error);
+    throw new Error('Failed to update seller approval status');
   }
 };
 

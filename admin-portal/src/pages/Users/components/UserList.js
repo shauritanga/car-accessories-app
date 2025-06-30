@@ -27,7 +27,7 @@ import {
 import { DataGrid } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getUsers, updateUserStatus } from '../../../services/userService';
+import { getUsers, updateUserStatus, updateSellerApproval } from '../../../services/userService';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -36,12 +36,21 @@ const UserList = ({ userType, refreshTrigger }) => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [approvalFilter, setApprovalFilter] = useState(''); // For seller approval status
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users', userType, searchTerm, statusFilter, refreshTrigger],
-    queryFn: () => getUsers({ role: userType, search: searchTerm, status: statusFilter }),
+    queryKey: ['users', userType, searchTerm, statusFilter, approvalFilter, refreshTrigger],
+    queryFn: async () => {
+      const filters = { role: userType, search: searchTerm, status: statusFilter };
+      if (userType === 'seller' && approvalFilter) {
+        filters.approval = approvalFilter; // Assuming 'approval' field exists or can be added in userService.js
+      }
+      const result = await getUsers(filters);
+      console.log('Fetched users:', result);
+      return result;
+    },
   });
 
   const updateStatusMutation = useMutation({
@@ -53,6 +62,18 @@ const UserList = ({ userType, refreshTrigger }) => {
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to update user status');
+    },
+  });
+
+  const updateApprovalMutation = useMutation({
+    mutationFn: ({ userId, approvalStatus }) => updateSellerApproval(userId, approvalStatus),
+    onSuccess: () => {
+      toast.success('Seller approval status updated successfully');
+      queryClient.invalidateQueries(['users']);
+      handleMenuClose();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update seller approval status');
     },
   });
 
@@ -76,6 +97,15 @@ const UserList = ({ userType, refreshTrigger }) => {
       updateStatusMutation.mutate({
         userId: selectedUser.id,
         isActive: !selectedUser.isActive,
+      });
+    }
+  };
+
+  const handleApprovalStatus = (status) => {
+    if (selectedUser) {
+      updateApprovalMutation.mutate({
+        userId: selectedUser.id,
+        approvalStatus: status,
       });
     }
   };
@@ -212,6 +242,22 @@ const UserList = ({ userType, refreshTrigger }) => {
               <MenuItem value="inactive">Inactive</MenuItem>
             </Select>
           </FormControl>
+          
+          {userType === 'seller' && (
+            <FormControl sx={{ minWidth: 150 }}>
+              <InputLabel>Approval</InputLabel>
+              <Select
+                value={approvalFilter}
+                onChange={(e) => setApprovalFilter(e.target.value)}
+                label="Approval"
+              >
+                <MenuItem value="">All Approvals</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="approved">Approved</MenuItem>
+                <MenuItem value="rejected">Rejected</MenuItem>
+              </Select>
+            </FormControl>
+          )}
         </Box>
       </Card>
 
@@ -266,6 +312,22 @@ const UserList = ({ userType, refreshTrigger }) => {
             {selectedUser?.isActive ? 'Deactivate' : 'Activate'}
           </ListItemText>
         </MenuItemComponent>
+        {userType === 'seller' && (
+          <MenuItemComponent onClick={() => handleApprovalStatus('approved')}>
+            <ListItemIcon>
+              <CheckCircle fontSize="small" color="success" />
+            </ListItemIcon>
+            <ListItemText>Approve Seller</ListItemText>
+          </MenuItemComponent>
+        )}
+        {userType === 'seller' && (
+          <MenuItemComponent onClick={() => handleApprovalStatus('rejected')}>
+            <ListItemIcon>
+              <Block fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText>Reject Seller</ListItemText>
+          </MenuItemComponent>
+        )}
       </Menu>
     </Box>
   );

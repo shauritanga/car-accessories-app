@@ -1,4 +1,7 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getOrderStats } from '../../services/orderService';
+import { getUserStatsSummary } from '../../services/userService';
 import {
   Box,
   List,
@@ -24,7 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const menuItems = [
+const getMenuItems = (pendingOrders) => [
   {
     text: 'Dashboard',
     icon: <Dashboard />,
@@ -40,7 +43,7 @@ const menuItems = [
     text: 'Orders',
     icon: <ShoppingCart />,
     path: '/orders',
-    badge: '12',
+    badge: pendingOrders > 0 ? pendingOrders.toString() : '',
   },
   {
     text: 'Users',
@@ -81,6 +84,13 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const { data: orderStats = { pending: 0 }, isLoading: ordersLoading } = useQuery({
+    queryKey: ['orderStats'],
+    queryFn: getOrderStats,
+  });
+
+  // Removed notification-related code as it's already in the header
+
   const isActive = (path) => {
     return location.pathname.startsWith(path);
   };
@@ -116,7 +126,7 @@ const Sidebar = () => {
       {/* Main Navigation */}
       <Box sx={{ flex: 1, overflow: 'auto' }}>
         <List sx={{ px: 2, py: 1 }}>
-          {menuItems.map((item) => (
+          {getMenuItems(orderStats.pending).map((item) => (
             <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 onClick={() => navigate(item.path)}
