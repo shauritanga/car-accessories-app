@@ -14,6 +14,9 @@ import {
   Badge,
   useTheme,
   useMediaQuery,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -25,6 +28,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 const drawerWidth = 280;
 

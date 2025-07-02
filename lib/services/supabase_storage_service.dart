@@ -19,7 +19,7 @@ class SupabaseStorageService {
     String bucket = SupabaseConfig.imagesBucket,
   }) async {
     try {
-      // Ensure authentication before upload
+      // Ensure aauthentication before upload
       await SupabaseAuthBridge.ensureAuthenticated();
       // Validate file size
       final fileSize = await file.length();

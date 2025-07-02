@@ -10,6 +10,14 @@ import Users from './pages/Users/Users';
 import Analytics from './pages/Analytics/Analytics';
 import Settings from './pages/Settings/Settings';
 import LoadingScreen from './components/LoadingScreen/LoadingScreen';
+import AdminUserManagementPage from './pages/admin/UserManagementPage';
+import AdminProductManagementPage from './pages/admin/ProductManagementPage';
+import AdminOrderManagementPage from './pages/admin/OrderManagementPage';
+import AdminFeedbackReviewsPage from './pages/admin/FeedbackReviewsPage';
+import AdminAnalyticsReportsPage from './pages/admin/AnalyticsReportsPage';
+import AdminContentManagementPage from './pages/admin/ContentManagementPage';
+import AdminSecurityAccessPage from './pages/admin/SecurityAccessPage';
+import AdminPaymentOversightPage from './pages/admin/PaymentOversightPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -56,6 +64,15 @@ function App() {
                   <Route path="/users/*" element={<Users />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings/*" element={<Settings />} />
+                  {/* Admin Portal Features */}
+                  <Route path="/admin/user-management" element={<AdminUserManagementPage />} />
+                  <Route path="/admin/product-management" element={<AdminProductManagementPage />} />
+                  <Route path="/admin/order-management" element={<AdminOrderManagementPage />} />
+                  <Route path="/admin/feedback-reviews" element={<AdminFeedbackReviewsPage />} />
+                  <Route path="/admin/analytics-reports" element={<AdminAnalyticsReportsPage />} />
+                  <Route path="/admin/content-management" element={<AdminContentManagementPage />} />
+                  <Route path="/admin/security-access" element={<AdminSecurityAccessPage />} />
+                  <Route path="/admin/payment-oversight" element={<AdminPaymentOversightPage />} />
                   <Route path="/" element={<Navigate to="/dashboard" />} />
                 </Routes>
               </Layout>

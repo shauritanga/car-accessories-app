@@ -23,7 +23,6 @@ import {
   DirectionsCar,
   TrendingUp,
   Assignment,
-  Notifications,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -59,6 +58,11 @@ const getMenuItems = (pendingOrders) => [
     text: 'Settings',
     icon: <Settings />,
     path: '/settings',
+  },
+  {
+    text: 'Content Management',
+    icon: <Assignment />, // Or another suitable icon
+    path: '/admin/content-management',
   },
 ];
 
