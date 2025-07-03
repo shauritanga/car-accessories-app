@@ -61,7 +61,6 @@ class ProductService {
         ...productToSave.toMap(),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'isActive': true,
       });
 
       print('ProductService: Product saved successfully to Firestore');
@@ -405,13 +404,13 @@ class ProductService {
         'Toyota Corolla',
         'Toyota Camry',
         'Toyota RAV4',
-        'Honda Civic',
-        'Honda Accord',
-        'Nissan Sentra',
-        'Mazda 3',
-        'Subaru Outback',
-        'Ford Focus',
-        'Volkswagen Golf',
+        'Toyota Highlander',
+        'Toyota Tacoma',
+        'Toyota Prius',
+        'Toyota Sienna',
+        'Toyota 4Runner',
+        'Toyota Tundra',
+        'Toyota Avalon',
       ];
     }
   }

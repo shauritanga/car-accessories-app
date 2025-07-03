@@ -267,16 +267,16 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                               ),
                               items: const [
                                 DropdownMenuItem(
-                                  value: 'Seat Covers',
-                                  child: Text('Seat Covers'),
+                                  value: 'Interior',
+                                  child: Text('Interior'),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'Lighting',
-                                  child: Text('Lighting'),
+                                  value: 'Exterior',
+                                  child: Text('Exterior'),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'Tools',
-                                  child: Text('Tools'),
+                                  value: 'Electrical',
+                                  child: Text('Electrical'),
                                 ),
                               ],
                               onChanged:

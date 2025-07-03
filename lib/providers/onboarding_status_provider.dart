@@ -7,6 +7,8 @@ final onboardingStatusProvider = FutureProvider<bool>((ref) async {
     final prefs = await SharedPreferences.getInstance();
     final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
     print('OnboardingStatusProvider: hasSeenOnboarding = $hasSeenOnboarding');
+    // Additional debug info
+    print('OnboardingStatusProvider: SharedPreferences instance = $prefs');
     return hasSeenOnboarding;
   } catch (e) {
     print('OnboardingStatusProvider: Error loading status - $e');
@@ -29,6 +31,9 @@ class OnboardingActions {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('has_seen_onboarding', true);
       print('OnboardingActions: Successfully saved onboarding completion');
+      // Additional debug info
+      final savedValue = prefs.getBool('has_seen_onboarding');
+      print('OnboardingActions: Verified saved value = $savedValue');
 
       // Invalidate the provider to refresh the state
       _ref.invalidate(onboardingStatusProvider);

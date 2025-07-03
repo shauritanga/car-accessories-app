@@ -148,6 +148,7 @@ class ProductModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool isActive;
+  final String status; // Track approval status: 'pending', 'approved', 'rejected'
   final int viewCount; // Track popularity
 
   ProductModel({
@@ -176,7 +177,8 @@ class ProductModel {
     this.tags,
     this.createdAt,
     this.updatedAt,
-    this.isActive = true,
+    this.isActive = false,
+    this.status = 'pending',
     this.viewCount = 0,
   });
 
@@ -230,7 +232,8 @@ class ProductModel {
           data['updatedAt'] != null
               ? (data['updatedAt'] as Timestamp).toDate()
               : null,
-      isActive: data['isActive'] ?? true,
+      isActive: data['isActive'] ?? false,
+      status: data['status'] ?? 'pending',
       viewCount: data['viewCount'] ?? 0,
     );
   }
@@ -263,6 +266,7 @@ class ProductModel {
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
       'isActive': isActive,
+      'status': status,
       'viewCount': viewCount,
     };
   }

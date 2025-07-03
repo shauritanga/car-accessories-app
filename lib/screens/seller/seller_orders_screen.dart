@@ -634,6 +634,115 @@ class _OrderDetailsSheet extends StatelessWidget {
             if (order.couponCode != null)
               Text('Coupon: ${order.couponCode}', style: theme.textTheme.bodyMedium),
             const Divider(height: 32),
+            Text('Delivery Coordination', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (order.status == 'shipped' || order.status == 'processing')
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Assign Delivery Personnel', style: theme.textTheme.bodyMedium),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: null,
+                        isExpanded: true,
+                        hint: const Text('Select Delivery Personnel'),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'person1',
+                            child: const Text('John Doe - +255 123 456 789'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'person2',
+                            child: const Text('Jane Smith - +255 987 654 321'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'custom',
+                            child: const Text('Custom Assignment'),
+                          ),
+                        ],
+                        onChanged: (value) async {
+                          if (value != null) {
+                            if (value == 'custom') {
+                              // Show dialog for custom entry
+                              final result = await showDialog<String>(
+                                context: context,
+                                builder: (context) {
+                                  final TextEditingController controller = TextEditingController();
+                                  return AlertDialog(
+                                    title: const Text('Custom Delivery Assignment'),
+                                    content: TextField(
+                                      controller: controller,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Enter Name and Contact',
+                                        hintText: 'e.g., Name - +255 XXX XXX XXX',
+                                      ),
+                                      onSubmitted: (text) {
+                                        Navigator.pop(context, text);
+                                      },
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          final text = controller.text;
+                                          Navigator.pop(context, text);
+                                        },
+                                        child: const Text('Assign'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                              if (result != null && result.isNotEmpty) {
+                                // TODO: Implement logic to save custom assignment
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Assigned to $result')),
+                                );
+                              }
+                            } else {
+                              // TODO: Implement logic to assign delivery personnel
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Assigned to ${value == 'person1' ? 'John Doe' : 'Jane Smith'}')),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implement notification to delivery personnel
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Notification sent to delivery personnel')),
+                      );
+                    },
+                    icon: const Icon(Icons.send),
+                    label: const Text('Notify Delivery Personnel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Text('Update order status to "Processing" or "Shipped" to assign delivery personnel.', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+            const Divider(height: 32),
             Text('Order Status History', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (order.statusHistory.isEmpty)
