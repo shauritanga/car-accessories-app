@@ -1,19 +1,19 @@
 // Order Management Service
 // Implement API calls for order management here
 import { getFirestore, collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { app } from '../../firebase';
+import { db } from '../../config/firebase';
 
-const db = getFirestore(app);
+const dbFirestore = db;
 
 export const getOrders = async () => {
-  const snap = await getDocs(collection(db, 'orders'));
+  const snap = await getDocs(collection(dbFirestore, 'orders'));
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const handleComplaint = async (orderId, action) => {
   // action: 'resolve' or 'details'
   if (action === 'resolve') {
-    await updateDoc(doc(db, 'orders', orderId), { complaint: null });
+    await updateDoc(doc(dbFirestore, 'orders', orderId), { complaint: null });
     return { success: true };
   }
   // For 'details', just return success (UI can show details from order data)
@@ -21,6 +21,6 @@ export const handleComplaint = async (orderId, action) => {
 };
 
 export const getSystemPerformance = async () => {
-  const snap = await getDocs(collection(db, 'systemPerformance'));
+  const snap = await getDocs(collection(dbFirestore, 'systemPerformance'));
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

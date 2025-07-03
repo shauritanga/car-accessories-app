@@ -1,10 +1,8 @@
 // User Management Service
 // Implement API calls for user management here
 // Example: Replace with real API endpoints
-import { getFirestore, collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
-import { app } from '../../firebase';
-
-const db = getFirestore(app);
+import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 export const getPendingSellers = async () => {
   const q = query(collection(db, 'users'), where('role', '==', 'seller'), where('status', '==', 'pending'));

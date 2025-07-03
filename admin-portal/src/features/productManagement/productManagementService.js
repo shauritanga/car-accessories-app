@@ -1,7 +1,6 @@
-import { getFirestore, collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { app } from '../../firebase';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
-const db = getFirestore(app);
 
 // Product Management Service
 // Implement API calls for product management here

@@ -1,17 +1,17 @@
 // Payment Oversight Service
 // Implement API calls for payment oversight here
 import { getFirestore, collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { app } from '../../firebase';
+import { db } from '../../config/firebase';
 
-const db = getFirestore(app);
+const dbFirestore = db;
 
 export const getTransactions = async () => {
-  const snap = await getDocs(collection(db, 'transactions'));
+  const snap = await getDocs(collection(dbFirestore, 'transactions'));
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const handleRefund = async (transactionId, action) => {
   // action: 'approve' | 'reject'
-  await updateDoc(doc(db, 'transactions', transactionId), { refundStatus: action });
+  await updateDoc(doc(dbFirestore, 'transactions', transactionId), { refundStatus: action });
   return { success: true };
 };

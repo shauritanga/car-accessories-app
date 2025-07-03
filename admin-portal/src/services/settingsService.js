@@ -1,7 +1,6 @@
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import { app } from '../../firebase';
+import { db } from '../config/firebase';
 
-const db = getFirestore(app);
 const CONFIG_DOC_PATH = 'appConfig/config';
 
 export const getSettings = async () => {
