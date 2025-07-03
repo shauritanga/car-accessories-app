@@ -13,6 +13,8 @@ import '../../widgets/related_products_widget.dart';
 import '../../widgets/recently_viewed_widget.dart';
 import '../../services/product_tracking_service.dart';
 import 'product_reviews_screen.dart';
+import '../../services/messaging_service.dart';
+import 'customer_chat_screen.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final ProductModel product;
@@ -612,6 +614,46 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.message),
+                label: const Text('Chat with Seller'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: () async {
+                  final user = ref.read(authProvider).user;
+                  if (user == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please log in to chat with the seller.'),
+                      ),
+                    );
+                    return;
+                  }
+                  final sellerId = widget.product.sellerId;
+                  final convoId = await MessagingService().startConversation([
+                    user.id,
+                    sellerId,
+                  ]);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => CustomerChatScreen(
+                            conversationId: convoId,
+                            otherUserId: sellerId,
+                          ),
+                    ),
+                  );
+                },
               ),
             ],
           ),

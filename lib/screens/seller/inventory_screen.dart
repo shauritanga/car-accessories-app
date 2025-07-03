@@ -7,6 +7,9 @@ import '../../providers/inventory_provider.dart';
 import '../../models/inventory_model.dart';
 import '../../widgets/inventory_product_card.dart';
 import '../../widgets/custom_button.dart';
+import 'pending_approval_screen.dart';
+import '../../services/product_service.dart';
+import '../../models/product_model.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -19,6 +22,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    if (user?.role == 'seller' && user?.status != 'approved') {
+      return const PendingApprovalScreen();
+    }
     final inventoryAsync =
         user != null
             ? ref.watch(inventoryStreamProvider(user.id))
@@ -76,83 +82,132 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final item = items[index];
-                return Material(
-                  color: Colors.white,
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(18),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () {
-                      _showEditInventoryDialog(
-                        context,
-                        item,
-                        inventoryNotifier,
+                return FutureBuilder<ProductModel>(
+                  future: ProductService().getProduct(item.productId),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData || snapshot.hasError) {
+                      return Material(
+                        color: Colors.white,
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(18),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Center(
+                            child: Text('Product not found'),
+                          ),
+                        ),
                       );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    }
+                    final product = snapshot.data!;
+                    Color stockColor;
+                    String stockStatus;
+                    if (item.stock == 0) {
+                      stockColor = Colors.red;
+                      stockStatus = 'Out of Stock';
+                    } else if (item.stock <= 5) {
+                      stockColor = Colors.orange;
+                      stockStatus = 'Low Stock';
+                    } else {
+                      stockColor = Colors.green;
+                      stockStatus = 'In Stock';
+                    }
+                    return Material(
+                      color: Colors.white,
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(18),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () {
+                          _showEditInventoryDialog(
+                            context,
+                            item,
+                            inventoryNotifier,
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              CircleAvatar(
-                                backgroundColor: colorScheme.primary.withOpacity(0.1),
-                                child: Icon(
-                                  Icons.inventory,
-                                  color: colorScheme.primary,
-                                  size: 28,
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: product.images.isNotEmpty
+                                        ? Image.network(
+                                            product.images.first,
+                                            width: 60,
+                                            height: 60,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 60,
+                                            height: 60,
+                                            color: Colors.grey[300],
+                                            child: const Icon(Icons.image_not_supported),
+                                          ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                                    onPressed: () {
+                                      _showEditInventoryDialog(
+                                        context,
+                                        item,
+                                        inventoryNotifier,
+                                      );
+                                    },
+                                    tooltip: 'Edit',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                product.name,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onBackground,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Stock: ${item.stock}',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: stockColor,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blueAccent),
-                                onPressed: () {
-                                  _showEditInventoryDialog(
-                                    context,
-                                    item,
-                                    inventoryNotifier,
-                                  );
-                                },
-                                tooltip: 'Edit',
+                              Text(
+                                stockStatus,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: stockColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Last Updated:',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onBackground.withOpacity(0.5),
+                                ),
+                              ),
+                              Text(
+                                '${item.lastUpdated.toLocal()}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onBackground.withOpacity(0.7),
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 18),
-                          Text(
-                            'Product ID: ${item.productId}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onBackground,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Stock: ${item.stock}',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Last Updated:',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onBackground.withOpacity(0.5),
-                            ),
-                          ),
-                          Text(
-                            '${item.lastUpdated.toLocal()}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onBackground.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             );

@@ -94,6 +94,8 @@ class OrderNotifier extends StateNotifier<List<OrderModel>> {
     required List<CartItemModel> items,
     required String deliveryAddress,
     String? deliveryInstructions,
+    required String paymentMethod,
+    required String paymentStatus,
   }) async {
     try {
       final orderId = const Uuid().v4();
@@ -131,6 +133,8 @@ class OrderNotifier extends StateNotifier<List<OrderModel>> {
         estimatedDeliveryDate: DateTime.now().add(const Duration(days: 3)),
         deliveryAddress: deliveryAddress,
         deliveryInstructions: deliveryInstructions,
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentStatus,
         statusHistory: [
           OrderStatusUpdate(
             status: 'pending',

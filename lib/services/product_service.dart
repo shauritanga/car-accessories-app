@@ -383,4 +383,48 @@ class ProductService {
       throw Exception('Failed to delete product: $e');
     }
   }
+
+  // Fetch car models from Firestore (for compatibility selection)
+  Future<List<String>> getCarModels() async {
+    try {
+      final snapshot = await _firestore.collection('carModels').get();
+      final carModels = <String>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if (data['name'] != null && data['manufacturer'] != null) {
+          carModels.add('${data['manufacturer']} ${data['name']}');
+        } else if (data['name'] != null) {
+          carModels.add(data['name']);
+        }
+      }
+      carModels.sort();
+      return carModels;
+    } catch (e) {
+      print('Error fetching car models: $e');
+      return [
+        'Toyota Corolla',
+        'Toyota Camry',
+        'Toyota RAV4',
+        'Honda Civic',
+        'Honda Accord',
+        'Nissan Sentra',
+        'Mazda 3',
+        'Subaru Outback',
+        'Ford Focus',
+        'Volkswagen Golf',
+      ];
+    }
+  }
+
+  Future<ProductModel?> getProductById(String id) async {
+    try {
+      DocumentSnapshot doc = await _firestore.collection('products').doc(id).get();
+      if (!doc.exists) return null;
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['isActive'] == false) return null;
+      return ProductModel.fromMap({...data, 'id': doc.id});
+    } catch (e) {
+      return null;
+    }
+  }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../models/analytics_model.dart';
 import '../services/analytics_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/order_model.dart';
 
 class AnalyticsProvider extends ChangeNotifier {
   final AnalyticsService _analyticsService = AnalyticsService();
@@ -406,4 +409,87 @@ class AnalyticsProvider extends ChangeNotifier {
   Future<void> refresh() async {
     await initializeAnalytics();
   }
+}
+
+final sellerAnalyticsProvider = FutureProvider.family<SellerAnalytics, String>((
+  ref,
+  sellerId,
+) async {
+  final firestore = FirebaseFirestore.instance;
+  final ordersSnap =
+      await firestore
+          .collection('orders')
+          .where('sellerId', isEqualTo: sellerId)
+          .where('status', whereIn: ['completed', 'delivered', 'shipped'])
+          .get();
+  final orders =
+      ordersSnap.docs
+          .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
+          .toList();
+
+  double totalSales = 0;
+  int totalOrders = orders.length;
+  Map<String, double> salesByWeek = {};
+  Map<String, double> productUnits = {};
+  Map<String, double> productRevenue = {};
+  Set<String> customerIds = {};
+  final now = DateTime.now();
+
+  for (final order in orders) {
+    totalSales += order.total;
+    customerIds.add(order.customerId);
+    // Sales by week (for trend)
+    final jan1 = DateTime(order.createdAt.year, 1, 1);
+    final week =
+        '${order.createdAt.year}-W${((order.createdAt.difference(jan1).inDays) ~/ 7) + 1}';
+    salesByWeek[week] = (salesByWeek[week] ?? 0) + order.total;
+    // Top products
+    for (final item in order.items) {
+      productUnits[item.productId] =
+          (productUnits[item.productId] ?? 0) + item.quantity;
+      productRevenue[item.productId] =
+          (productRevenue[item.productId] ?? 0) + (item.price * item.quantity);
+    }
+  }
+  double avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+  // Top products sorted
+  final topProducts =
+      productUnits.keys
+          .map(
+            (id) => {
+              'productId': id,
+              'units': productUnits[id],
+              'revenue': productRevenue[id],
+            },
+          )
+          .toList()
+        ..sort(
+          (a, b) => (b['units'] as double).compareTo(a['units'] as double),
+        );
+
+  return SellerAnalytics(
+    totalSales: totalSales,
+    totalOrders: totalOrders,
+    avgOrderValue: avgOrderValue,
+    salesByWeek: salesByWeek,
+    topProducts: topProducts,
+    uniqueCustomers: customerIds.length,
+  );
+});
+
+class SellerAnalytics {
+  final double totalSales;
+  final int totalOrders;
+  final double avgOrderValue;
+  final Map<String, double> salesByWeek;
+  final List<Map<String, dynamic>> topProducts;
+  final int uniqueCustomers;
+  SellerAnalytics({
+    required this.totalSales,
+    required this.totalOrders,
+    required this.avgOrderValue,
+    required this.salesByWeek,
+    required this.topProducts,
+    required this.uniqueCustomers,
+  });
 }

@@ -1,29 +1,29 @@
 // User Management Service
 // Implement API calls for user management here
 // Example: Replace with real API endpoints
-const API_BASE = '/api/admin';
+import { getFirestore, collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+import { app } from '../../firebase';
+
+const db = getFirestore(app);
 
 export const getPendingSellers = async () => {
-  // Fetch pending seller registrations
-  const res = await fetch(`${API_BASE}/sellers/pending`);
-  if (!res.ok) throw new Error('Failed to fetch pending sellers');
-  return res.json();
+  const q = query(collection(db, 'users'), where('role', '==', 'seller'), where('status', '==', 'pending'));
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const updateUserStatus = async (userId, status) => {
-  // Activate, deactivate, or suspend user
-  const res = await fetch(`${API_BASE}/users/${userId}/status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
-  if (!res.ok) throw new Error('Failed to update user status');
-  return res.json();
+  await updateDoc(doc(db, 'users', userId), { status });
+  return { success: true };
 };
 
 export const getUserProfiles = async () => {
-  // Fetch user profiles and activities
-  const res = await fetch(`${API_BASE}/users/profiles`);
-  if (!res.ok) throw new Error('Failed to fetch user profiles');
-  return res.json();
+  const snap = await getDocs(collection(db, 'users'));
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const getUserActivities = async (userId) => {
+  const q = query(collection(db, 'userActivities'), where('userId', '==', userId));
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

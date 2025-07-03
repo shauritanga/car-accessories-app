@@ -5,6 +5,9 @@ import '../../providers/auth_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/inventory_provider.dart';
 import 'package:intl/intl.dart';
+import 'pending_approval_screen.dart';
+import 'seller_inbox_screen.dart';
+import 'seller_promotions_screen.dart';
 
 class SellerDashboardScreen extends ConsumerWidget {
   const SellerDashboardScreen({super.key});
@@ -12,6 +15,9 @@ class SellerDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
+    if (currentUser?.role == 'seller' && currentUser?.status != 'approved') {
+      return const PendingApprovalScreen();
+    }
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -244,6 +250,31 @@ class SellerDashboardScreen extends ConsumerWidget {
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => Center(child: Text('Error loading orders: $error')),
+              ),
+              const SizedBox(height: 28),
+              ListTile(
+                leading: Icon(Icons.message),
+                title: Text('Inbox / Messages'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SellerInboxScreen(),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.local_offer),
+                title: Text('Promotions / Discounts'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SellerPromotionsScreen(),
+                    ),
+                  );
+                },
               ),
             ],
           ),

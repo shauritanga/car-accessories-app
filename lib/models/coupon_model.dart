@@ -1,18 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum CouponType {
-  percentage,
-  fixedAmount,
-  freeShipping,
-  buyOneGetOne,
-}
+enum CouponType { percentage, fixedAmount, freeShipping, buyOneGetOne }
 
-enum CouponStatus {
-  active,
-  inactive,
-  expired,
-  used,
-}
+enum CouponStatus { active, inactive, expired, used }
 
 class Coupon {
   final String id;
@@ -37,6 +27,7 @@ class Coupon {
   final String? createdBy;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final String? sellerId;
 
   Coupon({
     required this.id,
@@ -61,6 +52,7 @@ class Coupon {
     this.createdBy,
     required this.createdAt,
     this.updatedAt,
+    this.sellerId,
   });
 
   factory Coupon.fromMap(Map<String, dynamic> data, String id) {
@@ -75,23 +67,27 @@ class Coupon {
       ),
       value: (data['value'] as num?)?.toDouble() ?? 0.0,
       minimumOrderAmount: (data['minimumOrderAmount'] as num?)?.toDouble(),
-      maximumDiscountAmount: (data['maximumDiscountAmount'] as num?)?.toDouble(),
+      maximumDiscountAmount:
+          (data['maximumDiscountAmount'] as num?)?.toDouble(),
       usageLimit: data['usageLimit'],
       usageCount: data['usageCount'] ?? 0,
       userUsageLimit: data['userUsageLimit'],
-      applicableCategories: data['applicableCategories']?.cast<String>(),
-      applicableProducts: data['applicableProducts']?.cast<String>(),
-      excludedCategories: data['excludedCategories']?.cast<String>(),
-      excludedProducts: data['excludedProducts']?.cast<String>(),
+      applicableCategories:
+          (data['applicableCategories'] as List?)?.cast<String>(),
+      applicableProducts: (data['applicableProducts'] as List?)?.cast<String>(),
+      excludedCategories: (data['excludedCategories'] as List?)?.cast<String>(),
+      excludedProducts: (data['excludedProducts'] as List?)?.cast<String>(),
       startDate: (data['startDate'] as Timestamp).toDate(),
       endDate: (data['endDate'] as Timestamp).toDate(),
       isActive: data['isActive'] ?? true,
       isFirstTimeUser: data['isFirstTimeUser'] ?? false,
       createdBy: data['createdBy'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate()
-          : null,
+      updatedAt:
+          data['updatedAt'] != null
+              ? (data['updatedAt'] as Timestamp).toDate()
+              : null,
+      sellerId: data['sellerId'],
     );
   }
 
@@ -118,12 +114,14 @@ class Coupon {
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+      if (sellerId != null) 'sellerId': sellerId,
     };
   }
 
   bool get isExpired => DateTime.now().isAfter(endDate);
   bool get isNotStarted => DateTime.now().isBefore(startDate);
-  bool get isUsageLimitReached => usageLimit != null && usageCount >= usageLimit!;
+  bool get isUsageLimitReached =>
+      usageLimit != null && usageCount >= usageLimit!;
 
   CouponStatus get status {
     if (!isActive) return CouponStatus.inactive;
@@ -152,6 +150,59 @@ class Coupon {
   String get formattedMinimumOrder {
     if (minimumOrderAmount == null) return '';
     return 'Min. order TZS ${minimumOrderAmount!.toStringAsFixed(0)}';
+  }
+
+  Coupon copyWith({
+    String? id,
+    String? code,
+    String? name,
+    String? description,
+    CouponType? type,
+    double? value,
+    double? minimumOrderAmount,
+    double? maximumDiscountAmount,
+    int? usageLimit,
+    int? usageCount,
+    int? userUsageLimit,
+    List<String>? applicableCategories,
+    List<String>? applicableProducts,
+    List<String>? excludedCategories,
+    List<String>? excludedProducts,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool? isActive,
+    bool? isFirstTimeUser,
+    String? createdBy,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? sellerId,
+  }) {
+    return Coupon(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      value: value ?? this.value,
+      minimumOrderAmount: minimumOrderAmount ?? this.minimumOrderAmount,
+      maximumDiscountAmount:
+          maximumDiscountAmount ?? this.maximumDiscountAmount,
+      usageLimit: usageLimit ?? this.usageLimit,
+      usageCount: usageCount ?? this.usageCount,
+      userUsageLimit: userUsageLimit ?? this.userUsageLimit,
+      applicableCategories: applicableCategories ?? this.applicableCategories,
+      applicableProducts: applicableProducts ?? this.applicableProducts,
+      excludedCategories: excludedCategories ?? this.excludedCategories,
+      excludedProducts: excludedProducts ?? this.excludedProducts,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      isActive: isActive ?? this.isActive,
+      isFirstTimeUser: isFirstTimeUser ?? this.isFirstTimeUser,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      sellerId: sellerId ?? this.sellerId,
+    );
   }
 }
 

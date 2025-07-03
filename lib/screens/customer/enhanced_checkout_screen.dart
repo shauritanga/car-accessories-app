@@ -989,6 +989,8 @@ class _EnhancedCheckoutScreenState
           .createOrder(
             customerId: user?.id ?? 'guest',
             items: cart.items,
+            paymentMethod: _selectedPaymentMethod?.id ?? '',
+            paymentStatus: 'pending',
             deliveryAddress:
                 'Default Address', // This would come from selected address
             deliveryInstructions: _specialInstructionsController.text.trim(),

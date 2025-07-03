@@ -1,17 +1,36 @@
-// Accessory Categories Service
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { app } from '../../firebase';
+
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// Helper for uploading image file to Firebase Storage
+const uploadImage = async (file, folder = 'images') => {
+  if (!file) return '';
+  const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
+  await uploadBytes(storageRef, file);
+  return await getDownloadURL(storageRef);
+};
+
+// Accessory Categories CRUD
 export const getAccessoryCategories = async () => {
-  // TODO: Fetch accessory categories
-  return [];
+  const snap = await getDocs(collection(db, 'accessoryCategories'));
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 export const addAccessoryCategory = async (data) => {
-  // TODO: Add new accessory category
+  let imageUrl = data.imageUrl;
+  if (data.imageFile) imageUrl = await uploadImage(data.imageFile, 'accessoryCategories');
+  await addDoc(collection(db, 'accessoryCategories'), { name: data.name, imageUrl });
   return { success: true };
 };
 export const updateAccessoryCategory = async (id, data) => {
-  // TODO: Update accessory category
+  let imageUrl = data.imageUrl;
+  if (data.imageFile) imageUrl = await uploadImage(data.imageFile, 'accessoryCategories');
+  await updateDoc(doc(db, 'accessoryCategories', id), { name: data.name, imageUrl });
   return { success: true };
 };
 export const deleteAccessoryCategory = async (id) => {
-  // TODO: Delete accessory category
+  await deleteDoc(doc(db, 'accessoryCategories', id));
   return { success: true };
 };

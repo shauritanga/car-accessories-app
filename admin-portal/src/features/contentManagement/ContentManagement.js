@@ -6,83 +6,30 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import ImageIcon from '@mui/icons-material/DirectionsCar';
-import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { app } from '../../firebase'; // Adjust path if needed
-
-const db = getFirestore(app);
-const storage = getStorage(app);
-
-// Helper for uploading image file to Firebase Storage
-const uploadImage = async (file, folder = 'images') => {
-  if (!file) return '';
-  const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
-};
-
-// Banners
-const getBanners = async () => {
-  const snap = await getDocs(collection(db, 'banners'));
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-const addBanner = async (data) => {
-  // data: { title, imageUrl or imageFile }
-  let imageUrl = data.imageUrl;
-  if (data.imageFile) imageUrl = await uploadImage(data.imageFile, 'banners');
-  await addDoc(collection(db, 'banners'), { title: data.title, imageUrl });
-  return { success: true };
-};
-const updateBanner = async (bannerId, data) => {
-  let imageUrl = data.imageUrl;
-  if (data.imageFile) imageUrl = await uploadImage(data.imageFile, 'banners');
-  await updateDoc(doc(db, 'banners', bannerId), { title: data.title, imageUrl });
-  return { success: true };
-};
-const deleteBanner = async (bannerId) => {
-  await deleteDoc(doc(db, 'banners', bannerId));
-  return { success: true };
-};
-
-// FAQs
-const getFAQs = async () => {
-  const snap = await getDocs(collection(db, 'faqs'));
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-const addFAQ = async (data) => {
-  await addDoc(collection(db, 'faqs'), data);
-  return { success: true };
-};
-const updateFAQ = async (faqId, data) => {
-  await updateDoc(doc(db, 'faqs', faqId), data);
-  return { success: true };
-};
-const deleteFAQ = async (faqId) => {
-  await deleteDoc(doc(db, 'faqs', faqId));
-  return { success: true };
-};
-
-// Accessory Categories
-const getAccessoryCategories = async () => {
-  const snap = await getDocs(collection(db, 'accessoryCategories'));
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-const addAccessoryCategory = async (data) => {
-  let imageUrl = data.imageUrl;
-  if (data.imageFile) imageUrl = await uploadImage(data.imageFile, 'accessoryCategories');
-  await addDoc(collection(db, 'accessoryCategories'), { name: data.name, imageUrl });
-  return { success: true };
-};
-const updateAccessoryCategory = async (id, data) => {
-  let imageUrl = data.imageUrl;
-  if (data.imageFile) imageUrl = await uploadImage(data.imageFile, 'accessoryCategories');
-  await updateDoc(doc(db, 'accessoryCategories', id), { name: data.name, imageUrl });
-  return { success: true };
-};
-const deleteAccessoryCategory = async (id) => {
-  await deleteDoc(doc(db, 'accessoryCategories', id));
-  return { success: true };
-};
+import {
+  getBanners,
+  addBanner,
+  updateBanner,
+  deleteBanner,
+  getFAQs,
+  addFAQ,
+  updateFAQ,
+  deleteFAQ,
+  getDataProtectionPolicy,
+  updateDataProtectionPolicy
+} from './contentManagementService';
+import {
+  getAccessoryCategories,
+  addAccessoryCategory,
+  updateAccessoryCategory,
+  deleteAccessoryCategory
+} from './accessoryCategoriesService';
+import {
+  getCarModels,
+  addCarModel,
+  updateCarModel,
+  deleteCarModel
+} from './carModelsService';
 
 const ContentManagement = () => {
   const theme = useTheme();
@@ -101,6 +48,16 @@ const ContentManagement = () => {
   const { data: accessoryCategories = [], isLoading: loadingAccessoryCategories } = useQuery({
     queryKey: ['accessoryCategories'],
     queryFn: getAccessoryCategories,
+  });
+  // Car Models
+  const { data: carModels = [], isLoading: loadingCarModels } = useQuery({
+    queryKey: ['carModels'],
+    queryFn: getCarModels,
+  });
+  // Data Protection Policy
+  const { data: dataProtectionPolicy = { content: '' }, isLoading: loadingPolicy } = useQuery({
+    queryKey: ['dataProtectionPolicy'],
+    queryFn: getDataProtectionPolicy,
   });
   // Mutations
   const bannerMutation = useMutation({
@@ -139,6 +96,22 @@ const ContentManagement = () => {
     mutationFn: deleteAccessoryCategory,
     onSuccess: () => queryClient.invalidateQueries(['accessoryCategories']),
   });
+  const carModelAddMutation = useMutation({
+    mutationFn: addCarModel,
+    onSuccess: () => queryClient.invalidateQueries(['carModels']),
+  });
+  const carModelUpdateMutation = useMutation({
+    mutationFn: ({ id, data }) => updateCarModel(id, data),
+    onSuccess: () => queryClient.invalidateQueries(['carModels']),
+  });
+  const carModelDeleteMutation = useMutation({
+    mutationFn: deleteCarModel,
+    onSuccess: () => queryClient.invalidateQueries(['carModels']),
+  });
+  const updatePolicyMutation = useMutation({
+    mutationFn: updateDataProtectionPolicy,
+    onSuccess: () => queryClient.invalidateQueries(['dataProtectionPolicy']),
+  });
   // State for dialogs
   const [editFaq, setEditFaq] = useState(null);
   const [faqText, setFaqText] = useState('');
@@ -150,8 +123,14 @@ const ContentManagement = () => {
   const [newAccessoryCategory, setNewAccessoryCategory] = useState({ name: '', imageUrl: '' });
   const [editAccessoryCategory, setEditAccessoryCategory] = useState(null);
   const [editAccessoryCategoryData, setEditAccessoryCategoryData] = useState({ name: '', imageUrl: '' });
+  const [addCarModelOpen, setAddCarModelOpen] = useState(false);
+  const [newCarModel, setNewCarModel] = useState({ name: '', manufacturer: '' });
+  const [editCarModel, setEditCarModel] = useState(null);
+  const [editCarModelData, setEditCarModelData] = useState({ name: '', manufacturer: '' });
+  const [editPolicy, setEditPolicy] = useState(false);
+  const [policyText, setPolicyText] = useState('');
 
-  if (loadingBanners || loadingFaqs || loadingAccessoryCategories) return <CircularProgress />;
+  if (loadingBanners || loadingFaqs || loadingAccessoryCategories || loadingCarModels || loadingPolicy) return <CircularProgress />;
 
   return (
     <Box>
@@ -331,6 +310,98 @@ const ContentManagement = () => {
           <Button variant="contained" color="warning" onClick={() => { accessoryCategoryAddMutation.mutate(newAccessoryCategory); setAddAccessoryCategoryOpen(false); setNewAccessoryCategory({ name: '', imageUrl: '' }); }}>Add</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Car Models Section */}
+      {loadingCarModels ? <CircularProgress /> : (
+        <Card sx={{ mb: 4, boxShadow: 3 }}>
+          <CardHeader
+            avatar={<Avatar sx={{ bgcolor: theme.palette.info.main }}><ImageIcon /></Avatar>}
+            title={<Typography variant="h6">Car Models</Typography>}
+            action={<Button startIcon={<AddIcon />} variant="contained" color="info" onClick={() => setAddCarModelOpen(true)}>Add Car Model</Button>}
+          />
+          <CardContent>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Manufacturer</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {carModels.length === 0 && (
+                  <TableRow><TableCell colSpan={3}>No car models found</TableCell></TableRow>
+                )}
+                {carModels.map((model) => (
+                  <TableRow key={model.id}>
+                    <TableCell>{editCarModel === model.id ? (
+                      <TextField value={editCarModelData.name} onChange={e => setEditCarModelData({ ...editCarModelData, name: e.target.value })} />
+                    ) : model.name}</TableCell>
+                    <TableCell>{editCarModel === model.id ? (
+                      <TextField value={editCarModelData.manufacturer} onChange={e => setEditCarModelData({ ...editCarModelData, manufacturer: e.target.value })} />
+                    ) : model.manufacturer}</TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1}>
+                        {editCarModel === model.id ? (
+                          <>
+                            <Button size="small" color="success" variant="contained" onClick={() => { carModelUpdateMutation.mutate({ id: model.id, data: editCarModelData }); setEditCarModel(null); }}>Save</Button>
+                            <Button size="small" color="error" variant="outlined" onClick={() => setEditCarModel(null)}>Cancel</Button>
+                          </>
+                        ) : (
+                          <Button size="small" variant="outlined" onClick={() => { setEditCarModel(model.id); setEditCarModelData({ name: model.name, manufacturer: model.manufacturer }); }}>Edit</Button>
+                        )}
+                        <IconButton color="error" onClick={() => carModelDeleteMutation.mutate(model.id)}><DeleteIcon /></IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+      {/* Add Car Model Dialog */}
+      <Dialog open={addCarModelOpen} onClose={() => setAddCarModelOpen(false)}>
+        <DialogTitle>Add Car Model</DialogTitle>
+        <DialogContent>
+          <TextField label="Name" fullWidth sx={{ mb: 2 }} value={newCarModel.name} onChange={e => setNewCarModel({ ...newCarModel, name: e.target.value })} />
+          <TextField label="Manufacturer" fullWidth value={newCarModel.manufacturer} onChange={e => setNewCarModel({ ...newCarModel, manufacturer: e.target.value })} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddCarModelOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={() => { carModelAddMutation.mutate(newCarModel); setAddCarModelOpen(false); setNewCarModel({ name: '', manufacturer: '' }); }}>Add</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Data Protection Policy Section */}
+      {loadingPolicy ? <CircularProgress /> : (
+        <Card sx={{ mb: 4, boxShadow: 3 }}>
+          <CardHeader
+            avatar={<Avatar sx={{ bgcolor: theme.palette.error.main }}>P</Avatar>}
+            title={<Typography variant="h6">Data Protection Policy</Typography>}
+            action={<Button startIcon={<AddIcon />} variant="contained" color="error" onClick={() => { setEditPolicy(true); setPolicyText(dataProtectionPolicy.content); }}>Edit Policy</Button>}
+          />
+          <CardContent>
+            {editPolicy ? (
+              <>
+                <TextField
+                  value={policyText}
+                  onChange={e => setPolicyText(e.target.value)}
+                  multiline
+                  fullWidth
+                  minRows={6}
+                />
+                <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                  <Button variant="contained" color="success" onClick={() => { updatePolicyMutation.mutate(policyText); setEditPolicy(false); }}>Save</Button>
+                  <Button variant="outlined" color="error" onClick={() => setEditPolicy(false)}>Cancel</Button>
+                </Stack>
+              </>
+            ) : (
+              <Typography sx={{ whiteSpace: 'pre-line' }}>{dataProtectionPolicy.content || 'No policy set.'}</Typography>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 };

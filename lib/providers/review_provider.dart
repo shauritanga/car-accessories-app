@@ -54,7 +54,7 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
 
     try {
       final reviewId = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       // Upload images if provided
       List<String> imageUrls = [];
       if (images != null && images.isNotEmpty) {
@@ -110,7 +110,7 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
   Future<void> markReviewHelpful(String reviewId) async {
     try {
       await _reviewService.markReviewHelpful(reviewId);
-      
+
       // Update local state to show the review was marked as helpful
       final updatedHelpfulMarked = Map<String, bool>.from(state.helpfulMarked);
       updatedHelpfulMarked[reviewId] = true;
@@ -129,12 +129,23 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
     }
   }
 
-  Future<ReviewModel?> getUserReviewForProduct(String userId, String productId) async {
+  Future<ReviewModel?> getUserReviewForProduct(
+    String userId,
+    String productId,
+  ) async {
     try {
       return await _reviewService.getUserReviewForProduct(userId, productId);
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return null;
+    }
+  }
+
+  Future<void> flagReview(String reviewId, String productId) async {
+    try {
+      await _reviewService.flagReview(reviewId, productId);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
     }
   }
 
@@ -144,39 +155,55 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
 }
 
 // Providers
-final reviewProvider = StateNotifierProvider<ReviewNotifier, ReviewState>((ref) {
+final reviewProvider = StateNotifierProvider<ReviewNotifier, ReviewState>((
+  ref,
+) {
   return ReviewNotifier();
 });
 
 // Stream provider for product reviews
-final productReviewsStreamProvider = StreamProvider.family<List<ReviewModel>, String>((ref, productId) {
-  final reviewService = ReviewService();
-  return reviewService.getProductReviews(productId);
-});
+final productReviewsStreamProvider =
+    StreamProvider.family<List<ReviewModel>, String>((ref, productId) {
+      final reviewService = ReviewService();
+      return reviewService.getProductReviews(productId);
+    });
 
 // Stream provider for filtered product reviews
-final filteredProductReviewsStreamProvider = StreamProvider.family<List<ReviewModel>, ReviewFilter>((ref, filter) {
-  final reviewService = ReviewService();
-  return reviewService.getFilteredReviews(
-    filter.productId,
-    starFilter: filter.starFilter,
-    verifiedOnly: filter.verifiedOnly,
-    withImagesOnly: filter.withImagesOnly,
-    sortBy: filter.sortBy,
-  );
-});
+final filteredProductReviewsStreamProvider =
+    StreamProvider.family<List<ReviewModel>, ReviewFilter>((ref, filter) {
+      final reviewService = ReviewService();
+      return reviewService.getFilteredReviews(
+        filter.productId,
+        starFilter: filter.starFilter,
+        verifiedOnly: filter.verifiedOnly,
+        withImagesOnly: filter.withImagesOnly,
+        sortBy: filter.sortBy,
+      );
+    });
 
 // Stream provider for user reviews
-final userReviewsStreamProvider = StreamProvider.family<List<ReviewModel>, String>((ref, userId) {
-  final reviewService = ReviewService();
-  return reviewService.getUserReviews(userId);
-});
+final userReviewsStreamProvider =
+    StreamProvider.family<List<ReviewModel>, String>((ref, userId) {
+      final reviewService = ReviewService();
+      return reviewService.getUserReviews(userId);
+    });
 
 // Future provider for review summary
-final reviewSummaryProvider = FutureProvider.family<ReviewSummary, String>((ref, productId) {
+final reviewSummaryProvider = FutureProvider.family<ReviewSummary, String>((
+  ref,
+  productId,
+) {
   final reviewService = ReviewService();
   return reviewService.getProductReviewSummary(productId);
 });
+
+// Provider to get all reviews for a seller's products
+final reviewsBySellerProvider =
+    FutureProvider.family<List<ReviewModel>, String>((ref, sellerId) async {
+      // TODO: Implement getReviewsBySeller in ReviewService
+      final reviewService = ReviewService();
+      return await reviewService.getReviewsBySeller(sellerId);
+    });
 
 // Review filter class
 class ReviewFilter {

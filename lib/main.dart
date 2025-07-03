@@ -12,6 +12,9 @@ import 'services/error_handling_service.dart';
 import 'services/backup_service.dart';
 import 'services/monitoring_service.dart';
 import 'dart:developer' as developer;
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'providers/auth_provider.dart';
 //Zerubabel H Nzowa
 //6MekSApSajSvii3hI4tJ
 //1ZOs82E3sXUvpvg2dUV6
@@ -91,6 +94,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
 
     // Track app lifecycle
     _monitoringService.setAppActive(true);
+    _initFCM();
   }
 
   @override
@@ -124,6 +128,25 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         break;
       default:
         break;
+    }
+  }
+
+  Future<void> _initFCM() async {
+    final messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission();
+    final token = await messaging.getToken();
+    if (token != null) {
+      _updateFcmToken(token);
+    }
+    FirebaseMessaging.instance.onTokenRefresh.listen(_updateFcmToken);
+  }
+
+  void _updateFcmToken(String token) async {
+    final user = ref.read(authProvider).user;
+    if (user != null && user.fcmToken != token) {
+      await FirebaseFirestore.instance.collection('users').doc(user.id).update({
+        'fcmToken': token,
+      });
     }
   }
 

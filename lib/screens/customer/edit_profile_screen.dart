@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_profile_provider.dart';
 import '../../services/sample_data_service.dart';
+import 'dart:io';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -25,6 +27,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _profileImageUrl;
   bool _isLoading = false;
   bool _hasLoadedData = false;
+  XFile? _pickedImage;
 
   @override
   void dispose() {
@@ -184,13 +187,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           children: [
             CircleAvatar(
               radius: 60,
-              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+              backgroundColor: theme.colorScheme.primary.withAlpha(30),
               backgroundImage:
-                  _profileImageUrl != null
-                      ? NetworkImage(_profileImageUrl!)
+                  _pickedImage != null
+                      ? FileImage(File(_pickedImage!.path))
+                      : (_profileImageUrl != null &&
+                          _profileImageUrl!.isNotEmpty)
+                      ? NetworkImage(_profileImageUrl!) as ImageProvider
                       : null,
               child:
-                  _profileImageUrl == null
+                  (_pickedImage == null &&
+                          (_profileImageUrl == null ||
+                              _profileImageUrl!.isEmpty))
                       ? Icon(
                         Icons.person,
                         size: 60,
@@ -201,14 +209,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             Positioned(
               bottom: 0,
               right: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.camera_alt, color: Colors.white),
-                  onPressed: _pickImage,
+              child: InkWell(
+                onTap: _isLoading ? null : _pickImage,
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: theme.colorScheme.primary,
+                  child: const Icon(Icons.camera_alt, color: Colors.white),
                 ),
               ),
             ),
@@ -332,40 +338,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 80,
-      );
-
-      if (image != null) {
-        // In a real app, you would upload the image to a storage service
-        // For now, we'll just use a placeholder URL
-        setState(() {
-          _profileImageUrl = 'https://via.placeholder.com/512x512';
-        });
-
-        if (mounted && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile picture updated! (Demo mode)'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error picking image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() {
+        _pickedImage = picked;
+      });
     }
   }
 
@@ -385,16 +366,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  Future<String?> _uploadProfileImage(String userId) async {
+    if (_pickedImage == null) return _profileImageUrl;
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('$userId.jpg');
+      await ref.putData(await _pickedImage!.readAsBytes());
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final user = ref.read(currentUserProvider);
-    if (user == null) {
-      _showErrorMessage('User not found. Please log in again.');
-      return;
-    }
-
     setState(() => _isLoading = true);
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    String? imageUrl = await _uploadProfileImage(user.id);
 
     try {
       final firstName = _firstNameController.text.trim();
@@ -418,7 +409,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'phoneNumber': phone, // Keep both for compatibility
         'dateOfBirth': dateOfBirth,
         'gender': _selectedGender,
-        'profileImageUrl': _profileImageUrl,
+        'profileImageUrl': imageUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -455,7 +446,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             phoneNumber: phone,
             dateOfBirth: dateOfBirth,
             gender: _selectedGender,
-            profileImageUrl: _profileImageUrl,
+            profileImageUrl: imageUrl,
           );
 
       // The auth provider will automatically update via Firebase listener

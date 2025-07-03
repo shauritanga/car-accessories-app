@@ -279,4 +279,41 @@ class ReviewService {
               .toList(),
     );
   }
+
+  Future<List<ReviewModel>> getReviewsBySeller(String sellerId) async {
+    // Fetch all products by this seller
+    final productsSnapshot =
+        await FirebaseFirestore.instance
+            .collection('products')
+            .where('sellerId', isEqualTo: sellerId)
+            .get();
+    final productIds = productsSnapshot.docs.map((doc) => doc.id).toList();
+    if (productIds.isEmpty) return [];
+    // Fetch all reviews for these products
+    final reviews = <ReviewModel>[];
+    for (final productId in productIds) {
+      final reviewsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('products')
+              .doc(productId)
+              .collection('reviews')
+              .get();
+      reviews.addAll(
+        reviewsSnapshot.docs.map(
+          (doc) => ReviewModel.fromMap(doc.data(), doc.id),
+        ),
+      );
+    }
+    return reviews;
+  }
+
+  Future<void> flagReview(String reviewId, String productId) async {
+    try {
+      await _firestore.collection('reviews').doc(reviewId).update({
+        'flagged': true,
+      });
+    } catch (e) {
+      throw Exception('Failed to flag review: $e');
+    }
+  }
 }

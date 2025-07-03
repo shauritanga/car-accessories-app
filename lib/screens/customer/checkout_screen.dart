@@ -552,6 +552,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             items: cart.items,
             deliveryAddress: _selectedAddress!.fullAddress,
             deliveryInstructions: _selectedAddress!.instructions,
+            paymentMethod: _selectedPaymentMethod!.type,
+            paymentStatus: 'pending',
           );
 
       print('CheckoutScreen: Order created successfully with ID: ${order.id}');

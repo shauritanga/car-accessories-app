@@ -1,3 +1,4 @@
+import 'package:car_accessories/screens/customer/customer_inbox_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -46,6 +47,18 @@ class _CustomerSupportScreenState extends ConsumerState<CustomerSupportScreen> {
         backgroundColor: colorScheme.surface,
         elevation: 0,
         scrolledUnderElevation: 1,
+        actions: [
+          ListTile(
+            leading: Icon(Icons.message),
+            title: Text('Inbox / Messages'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => CustomerInboxScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

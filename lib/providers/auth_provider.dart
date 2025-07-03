@@ -82,6 +82,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
               name: userData['name'],
               phone: userData['phone'],
               role: userData['role'] ?? 'customer',
+              status: userData['status'] ?? 'active',
             );
 
             // Update last login
@@ -161,6 +162,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'name': name,
         'phone': phone,
         'role': role,
+        'status': role == 'seller' ? 'pending' : 'active',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'isActive': true,

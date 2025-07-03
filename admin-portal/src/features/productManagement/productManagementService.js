@@ -1,14 +1,28 @@
+import { getFirestore, collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { app } from '../../firebase';
+
+const db = getFirestore(app);
+
 // Product Management Service
 // Implement API calls for product management here
+
+// Fetch products pending approval
 export const getPendingProducts = async () => {
-  // TODO: Fetch products pending approval
-  return [];
+  const snap = await getDocs(collection(db, 'products'));
+  // Only return products with status 'pending'
+  return snap.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .filter(product => product.status === 'pending');
 };
+
+// Approve, reject, or remove product
 export const updateProductStatus = async (productId, status) => {
-  // TODO: Approve, reject, or remove product
+  await updateDoc(doc(db, 'products', productId), { status });
   return { success: true };
 };
+
+// Fetch product categories and descriptions
 export const getProductCategories = async () => {
-  // TODO: Fetch product categories and descriptions
-  return [];
+  const snap = await getDocs(collection(db, 'productCategories'));
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
