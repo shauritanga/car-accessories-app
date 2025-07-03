@@ -311,6 +311,58 @@ const OrderDetails = () => {
             </CardContent>
           </Card>
         </Grid>
+        
+        {/* Complaints and Disputes */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Complaints and Disputes
+              </Typography>
+              <Box sx={{ mb: 2 }}>
+                {order.complaints && order.complaints.length > 0 ? (
+                  <List>
+                    {order.complaints.map((complaint, index) => (
+                      <React.Fragment key={index}>
+                        <ListItem sx={{ px: 0 }}>
+                          <ListItemText
+                            primary={
+                              <Typography variant="body1" fontWeight="600">
+                                {complaint.title}
+                              </Typography>
+                            }
+                            secondary={
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Status: {complaint.status}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Reported on: {complaint.date ? format(new Date(complaint.date), 'MMM dd, yyyy') : 'N/A'}
+                                </Typography>
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                        {index < (order.complaints.length - 1) && <Divider />}
+                      </React.Fragment>
+                    ))}
+                  </List>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No complaints or disputes reported for this order.
+                  </Typography>
+                )}
+              </Box>
+              <Button
+                variant="outlined"
+                fullWidth
+                sx={{ mt: 2 }}
+              >
+                Log New Complaint
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
     </Box>
   );

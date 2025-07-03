@@ -20,16 +20,9 @@ const Products = () => {
   const location = useLocation();
   const [selectedProducts, setSelectedProducts] = useState([]);
 
-  const currentTab = location.pathname.includes('/add') ? 1 : 
-                   location.pathname.includes('/edit') ? 1 : 0;
-
-  const handleTabChange = (event, newValue) => {
-    if (newValue === 0) {
-      navigate('/products');
-    } else if (newValue === 1) {
-      navigate('/products/add');
-    }
-  };
+  // Only one tab: All Products
+  const currentTab = 0;
+  const handleTabChange = () => {};
 
   return (
     <Box>
@@ -41,7 +34,7 @@ const Products = () => {
               Product Management
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Manage your car accessories inventory
+              Review and manage products submitted by sellers. Only approved products are visible in the mobile app.
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
@@ -49,6 +42,7 @@ const Products = () => {
               variant="outlined"
               startIcon={<Upload />}
               onClick={() => {/* Handle bulk import */}}
+              disabled
             >
               Import
             </Button>
@@ -59,17 +53,9 @@ const Products = () => {
             >
               Export
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => navigate('/products/add')}
-            >
-              Add Product
-            </Button>
           </Box>
         </Box>
-
-        {/* Tabs */}
+        {/* Only one tab: All Products */}
         <Card>
           <Tabs
             value={currentTab}
@@ -77,11 +63,9 @@ const Products = () => {
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
             <Tab label="All Products" />
-            <Tab label="Add/Edit Product" />
           </Tabs>
         </Card>
       </Box>
-
       {/* Bulk Actions */}
       {selectedProducts.length > 0 && (
         <motion.div
@@ -95,21 +79,16 @@ const Products = () => {
           />
         </motion.div>
       )}
-
-      {/* Content */}
+      {/* Nested Routes for Product List and Details */}
       <Routes>
-        <Route 
-          path="/" 
-          element={
-            <ProductList
-              selectedProducts={selectedProducts}
-              onSelectionChange={setSelectedProducts}
-            />
-          } 
-        />
-        <Route path="/add" element={<ProductForm />} />
-        <Route path="/edit/:id" element={<ProductForm />} />
-        <Route path="/details/:id" element={<ProductDetails />} />
+        <Route path="/" element={
+          <ProductList
+            selectedProducts={selectedProducts}
+            onSelectionChange={setSelectedProducts}
+            adminMode
+          />
+        } />
+        <Route path="details/:id" element={<ProductDetails />} />
       </Routes>
     </Box>
   );

@@ -14,6 +14,18 @@ import {
   ListItemIcon,
   ListItemText,
   MenuItem as MenuItemComponent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
 } from '@mui/material';
 import {
   Search,
@@ -22,24 +34,46 @@ import {
   Delete,
   Visibility,
   MoreVert,
+  CheckCircle,
+  Cancel,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getProducts } from '../../../services/productService';
+import { getProducts, deleteProduct, updateProductStatus } from '../../../services/productService';
 import { format } from 'date-fns';
+import Snackbar from '@mui/material/Snackbar';
 
-const ProductList = ({ selectedProducts, onSelectionChange }) => {
+const ProductList = ({ selectedProducts, onSelectionChange, adminMode }) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [productToApprove, setProductToApprove] = useState(null);
+  const [productToReject, setProductToReject] = useState(null);
+  const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products', searchTerm, categoryFilter, statusFilter],
     queryFn: () => getProducts({ search: searchTerm, category: categoryFilter, status: statusFilter }),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ productId, status }) => updateProductStatus(productId, status),
+    onSuccess: () => {
+      setSnackbar({ open: true, message: 'Product status updated', severity: 'success' });
+      queryClient.invalidateQueries(['products']);
+    },
+    onError: (error) => {
+      setSnackbar({ open: true, message: error.message || 'Failed to update status', severity: 'error' });
+    },
   });
 
   const handleMenuOpen = (event, product) => {
@@ -52,19 +86,54 @@ const ProductList = ({ selectedProducts, onSelectionChange }) => {
     setSelectedProduct(null);
   };
 
-  const handleEdit = () => {
-    navigate(`/products/edit/${selectedProduct.id}`);
+  const handleView = (id) => {
+    navigate(`/products/details/${id}`);
     handleMenuClose();
   };
 
-  const handleView = () => {
-    navigate(`/products/details/${selectedProduct.id}`);
+  const handleDelete = (id) => {
+    setDeleteDialogOpen(true);
+    setProductToDelete(id);
     handleMenuClose();
   };
 
-  const handleDelete = () => {
-    // Handle delete logic
-    handleMenuClose();
+  const confirmDelete = async () => {
+    try {
+      await deleteProduct(productToDelete);
+      setSnackbar({ open: true, message: 'Product deleted successfully', severity: 'success' });
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
+      // Optionally refresh the product list (if not using React Query's refetch)
+      // refetch();
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to delete product', severity: 'error' });
+    }
+  };
+
+  const handleApprove = (id) => {
+    setProductToApprove(id);
+    setApproveDialogOpen(true);
+  };
+
+  const handleReject = (id) => {
+    setProductToReject(id);
+    setRejectDialogOpen(true);
+  };
+
+  const confirmApprove = () => {
+    statusMutation.mutate({ productId: productToApprove, status: 'approved' }, {
+      onSuccess: () => setSnackbar({ open: true, message: 'Product approved', severity: 'success' })
+    });
+    setApproveDialogOpen(false);
+    setProductToApprove(null);
+  };
+
+  const confirmReject = () => {
+    statusMutation.mutate({ productId: productToReject, status: 'rejected' }, {
+      onSuccess: () => setSnackbar({ open: true, message: 'Product rejected', severity: 'info' })
+    });
+    setRejectDialogOpen(false);
+    setProductToReject(null);
   };
 
   const columns = [
@@ -182,7 +251,7 @@ const ProductList = ({ selectedProducts, onSelectionChange }) => {
             }}
             sx={{ minWidth: 300 }}
           />
-          
+
           <FormControl sx={{ minWidth: 150 }}>
             <InputLabel>Category</InputLabel>
             <Select
@@ -207,9 +276,10 @@ const ProductList = ({ selectedProducts, onSelectionChange }) => {
               label="Status"
             >
               <MenuItem value="">All Status</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+              <MenuItem value="approved">Approved</MenuItem>
+              <MenuItem value="rejected">Rejected</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
-              <MenuItem value="draft">Draft</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -252,25 +322,73 @@ const ProductList = ({ selectedProducts, onSelectionChange }) => {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItemComponent onClick={handleView}>
+        <MenuItemComponent onClick={() => handleView(selectedProduct.id)}>
           <ListItemIcon>
             <Visibility fontSize="small" />
           </ListItemIcon>
           <ListItemText>View Details</ListItemText>
         </MenuItemComponent>
-        <MenuItemComponent onClick={handleEdit}>
+        {selectedProduct && selectedProduct.status === 'pending' && (
+          <>
+            <MenuItemComponent onClick={() => handleApprove(selectedProduct.id)}>
+              <ListItemIcon>
+                <CheckCircle fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Approve</ListItemText>
+            </MenuItemComponent>
+            <MenuItemComponent onClick={() => handleReject(selectedProduct.id)}>
+              <ListItemIcon>
+                <Cancel fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Reject</ListItemText>
+            </MenuItemComponent>
+          </>
+        )}
+        <MenuItemComponent onClick={() => handleDelete(selectedProduct.id)}>
           <ListItemIcon>
-            <Edit fontSize="small" />
+            <Delete fontSize="small" color="error" />
           </ListItemIcon>
-          <ListItemText>Edit Product</ListItemText>
-        </MenuItemComponent>
-        <MenuItemComponent onClick={handleDelete}>
-          <ListItemIcon>
-            <Delete fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Delete Product</ListItemText>
+          <ListItemText>Delete</ListItemText>
         </MenuItemComponent>
       </Menu>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Product</DialogTitle>
+        <DialogContent>Are you sure you want to delete this product?</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={confirmDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Approve Confirmation Dialog */}
+      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)}>
+        <DialogTitle>Approve Product</DialogTitle>
+        <DialogContent>Are you sure you want to approve this product?</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
+          <Button color="success" variant="contained" onClick={confirmApprove}>Approve</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reject Confirmation Dialog */}
+      <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)}>
+        <DialogTitle>Reject Product</DialogTitle>
+        <DialogContent>Are you sure you want to reject this product?</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={confirmReject}>Reject</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
     </Box>
   );
 };

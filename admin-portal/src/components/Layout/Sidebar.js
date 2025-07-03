@@ -23,6 +23,10 @@ import {
   DirectionsCar,
   TrendingUp,
   Assignment,
+  AttachMoney,
+  Security,
+  RateReview,
+  ListAlt,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -36,8 +40,8 @@ const getMenuItems = (pendingOrders) => [
     text: 'Products',
     icon: <Inventory />,
     path: '/products',
-    badge: 'New',
   },
+  
   {
     text: 'Orders',
     icon: <ShoppingCart />,
@@ -50,19 +54,30 @@ const getMenuItems = (pendingOrders) => [
     path: '/users',
   },
   {
-    text: 'Analytics',
+    text: 'Reviews',
+    icon: <RateReview />,
+    path: '/feedback-reviews',
+  },
+  {
+    text: 'Content Management',
+    icon: <Assignment />,
+    path: '/content-management',
+  },
+  {
+    text: 'Analytics & Reports',
     icon: <Analytics />,
     path: '/analytics',
   },
   {
+    text: 'Payment Oversight',
+    icon: <AttachMoney />,
+    path: '/payment-oversight',
+  },
+  
+  {
     text: 'Settings',
     icon: <Settings />,
     path: '/settings',
-  },
-  {
-    text: 'Content Management',
-    icon: <Assignment />, // Or another suitable icon
-    path: '/admin/content-management',
   },
 ];
 

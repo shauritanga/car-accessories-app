@@ -6,6 +6,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { logUserActivity } from '../services/fraudDetectionService';
 import { auth, db } from '../config/firebase';
 import toast from 'react-hot-toast';
 
@@ -38,10 +39,14 @@ export const AuthProvider = ({ children }) => {
       
       setUserProfile(userDoc.data());
       toast.success('Welcome back!');
+      // Log successful login
+      await logUserActivity(result.user.uid, 'login_success', { email });
       return result;
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed');
+      // Log failed login attempt
+      await logUserActivity(email, 'login_failed', { email, error: error.message });
       throw error;
     }
   };
@@ -84,6 +89,8 @@ export const AuthProvider = ({ children }) => {
             await signOut(auth);
             setCurrentUser(null);
             setUserProfile(null);
+            // Log unauthorized access attempt
+            await logUserActivity(user.uid, 'unauthorized_access', { email: user.email });
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);

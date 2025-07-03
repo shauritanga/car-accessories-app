@@ -58,13 +58,6 @@ const ProductDetails = () => {
             Product Details
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Edit />}
-          onClick={() => navigate(`/products/edit/${id}`)}
-        >
-          Edit Product
-        </Button>
       </Box>
 
       <Grid container spacing={3}>
@@ -118,6 +111,14 @@ const ProductDetails = () => {
                   </Typography>
                   <Typography variant="body1" fontWeight="600">
                     {product.brand || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Seller
+                  </Typography>
+                  <Typography variant="body1" fontWeight="600">
+                    {product.sellerName || product.sellerId || 'N/A'}
                   </Typography>
                 </Grid>
               </Grid>

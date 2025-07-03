@@ -9,15 +9,10 @@ import Orders from './pages/Orders/Orders';
 import Users from './pages/Users/Users';
 import Analytics from './pages/Analytics/Analytics';
 import Settings from './pages/Settings/Settings';
+import ContentManagement from './pages/ContentManagement/ContentManagement';
+import FeedbackReviews from './pages/FeedbackReviews/FeedbackReviews';
+import PaymentOversight from './pages/PaymentOversight/PaymentOversight';
 import LoadingScreen from './components/LoadingScreen/LoadingScreen';
-import AdminUserManagementPage from './pages/admin/UserManagementPage';
-import AdminProductManagementPage from './pages/admin/ProductManagementPage';
-import AdminOrderManagementPage from './pages/admin/OrderManagementPage';
-import AdminFeedbackReviewsPage from './pages/admin/FeedbackReviewsPage';
-import AdminAnalyticsReportsPage from './pages/admin/AnalyticsReportsPage';
-import AdminContentManagementPage from './pages/admin/ContentManagementPage';
-import AdminSecurityAccessPage from './pages/admin/SecurityAccessPage';
-import AdminPaymentOversightPage from './pages/admin/PaymentOversightPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -42,18 +37,18 @@ function App() {
     <div className="App">
       <Routes>
         {/* Public Routes */}
-        <Route 
-          path="/login" 
+        <Route
+          path="/login"
           element={
             <PublicRoute>
               <Login />
             </PublicRoute>
-          } 
+          }
         />
 
         {/* Protected Routes */}
-        <Route 
-          path="/*" 
+        <Route
+          path="/*"
           element={
             <ProtectedRoute>
               <Layout>
@@ -63,21 +58,15 @@ function App() {
                   <Route path="/orders/*" element={<Orders />} />
                   <Route path="/users/*" element={<Users />} />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/feedback-reviews/*" element={<FeedbackReviews />} />
                   <Route path="/settings/*" element={<Settings />} />
-                  {/* Admin Portal Features */}
-                  <Route path="/admin/user-management" element={<AdminUserManagementPage />} />
-                  <Route path="/admin/product-management" element={<AdminProductManagementPage />} />
-                  <Route path="/admin/order-management" element={<AdminOrderManagementPage />} />
-                  <Route path="/admin/feedback-reviews" element={<AdminFeedbackReviewsPage />} />
-                  <Route path="/admin/analytics-reports" element={<AdminAnalyticsReportsPage />} />
-                  <Route path="/admin/content-management" element={<AdminContentManagementPage />} />
-                  <Route path="/admin/security-access" element={<AdminSecurityAccessPage />} />
-                  <Route path="/admin/payment-oversight" element={<AdminPaymentOversightPage />} />
+                  <Route path="/content-management/*" element={<ContentManagement />} />
+                  <Route path="/payment-oversight/*" element={<PaymentOversight />} />
                   <Route path="/" element={<Navigate to="/dashboard" />} />
                 </Routes>
               </Layout>
             </ProtectedRoute>
-          } 
+          }
         />
       </Routes>
     </div>

@@ -18,22 +18,23 @@ export const getDashboardStats = async () => {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Get orders for current month
+    // Get orders for current month (without date filter for debugging)
     const currentMonthOrders = await getDocs(
       query(
-        collection(db, 'orders'),
-        where('createdAt', '>=', Timestamp.fromDate(startOfMonth))
+        collection(db, 'orders')
       )
     );
+    console.log('All orders count (no date filter):', currentMonthOrders.docs.length);
+    console.log('All orders data (no date filter):', currentMonthOrders.docs.map(doc => ({ id: doc.id, data: doc.data() })));
 
-    // Get orders for last month
+    // Get orders for last month (without date filter for debugging, same as current for now)
     const lastMonthOrders = await getDocs(
       query(
-        collection(db, 'orders'),
-        where('createdAt', '>=', Timestamp.fromDate(startOfLastMonth)),
-        where('createdAt', '<=', Timestamp.fromDate(endOfLastMonth))
+        collection(db, 'orders')
       )
     );
+    console.log('All orders count (no date filter, last month placeholder):', lastMonthOrders.docs.length);
+    console.log('All orders data (no date filter, last month placeholder):', lastMonthOrders.docs.map(doc => ({ id: doc.id, data: doc.data() })));
 
     // Calculate current month stats
     const currentRevenue = currentMonthOrders.docs.reduce(

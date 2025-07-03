@@ -37,6 +37,7 @@ export const getAnalyticsData = async (timeRange) => {
     const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
     const totalOrders = orders.length;
     const activeCustomers = users.filter(u => u.role === 'customer' && u.isActive).length;
+    console.log('Calculated Metrics - Total Revenue:', totalRevenue, 'Total Orders:', totalOrders, 'Active Customers:', activeCustomers);
 
     // Calculate conversion rate (mock calculation)
     const conversionRate = totalOrders > 0 ? (totalOrders / (totalOrders * 10)) * 100 : 0;

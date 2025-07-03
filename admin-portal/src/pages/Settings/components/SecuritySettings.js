@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -16,9 +16,24 @@ import {
   ListItemSecondaryAction,
   IconButton,
 } from '@mui/material';
-import { Save, Delete, Security } from '@mui/icons-material';
+import { Save, Delete, Security, Warning } from '@mui/icons-material';
+import { getRecentFraudAlerts } from '../../../services/fraudDetectionService';
 
 const SecuritySettings = () => {
+  const [fraudAlerts, setFraudAlerts] = useState([]);
+
+  useEffect(() => {
+    const fetchFraudAlerts = async () => {
+      try {
+        const alerts = await getRecentFraudAlerts();
+        setFraudAlerts(alerts);
+      } catch (error) {
+        console.error('Error fetching fraud alerts:', error);
+      }
+    };
+    fetchFraudAlerts();
+  }, []);
+
   return (
     <Grid container spacing={3}>
       {/* Password Settings */}
@@ -160,6 +175,39 @@ const SecuritySettings = () => {
                   secondary="2 days ago at 11:20 PM from unknown IP"
                 />
               </ListItem>
+            </List>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* Fraud Alerts */}
+      <Grid item xs={12}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Recent Fraud Alerts
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+            
+            <List>
+              {fraudAlerts.length > 0 ? (
+                fraudAlerts.map(alert => (
+                  <ListItem key={alert.id}>
+                    <Warning sx={{ mr: 2, color: alert.severity === 'high' ? 'error.main' : 'warning.main' }} />
+                    <ListItemText
+                      primary={alert.type.replace(/_/g, ' ').toUpperCase()}
+                      secondary={`${alert.message} - ${alert.timestamp.toLocaleString()}`}
+                    />
+                  </ListItem>
+                ))
+              ) : (
+                <ListItem>
+                  <ListItemText
+                    primary="No recent fraud alerts"
+                    secondary="No suspicious activities detected recently"
+                  />
+                </ListItem>
+              )}
             </List>
           </CardContent>
         </Card>
